@@ -1,16 +1,20 @@
 #include <Arduino.h>
 #include <LittleFS.h>
-//defualt code:
-// put function declarations here::
+#include <networkAndWebserver/startWifiAP.h>
+
+WiFiManagerSimple wifi;
 int myFunction(int, int);
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  WiFiManagerSimple::APConfig cfg;
+  cfg.ssid = "ESP32Controller";
+  cfg.password = "12345678";
+  cfg.channel = 6;
+  wifi.beginAP(cfg);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+  
 }
 
 // put function definitions here:
