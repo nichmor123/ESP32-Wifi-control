@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 //defualt code:
-// put function declarations here:
+// put function declarations here::
 int myFunction(int, int);
 
 void setup() {
