@@ -1,23 +1,28 @@
 #include <Arduino.h>
-#include <LittleFS.h>
-#include <networkAndWebserver/startWifiAP.h>
+#include "networkAndWebserver/WifiAPConfig.h"
+#include "networkAndWebserver/serveWebsite.h"
 
 WiFiManagerSimple wifi;
-int myFunction(int, int);
+
+StaticFileServer::Config httpCfg;
+StaticFileServer web(httpCfg);
 
 void setup() {
-  WiFiManagerSimple::APConfig cfg;
-  cfg.ssid = "ESP32Controller";
-  cfg.password = "12345678";
-  cfg.channel = 6;
-  wifi.beginAP(cfg);
+    Serial.begin(115200);
+
+    // Start AP
+    WiFiManagerSimple::APConfig ap;
+    ap.ssid = "UniversalController";
+    ap.password = "robotics123";
+    wifi.beginAP(ap);
+
+    httpCfg.defaultFile = "/index.html";
+    web = StaticFileServer(httpCfg);
+    web.addPageRoute("/config/inputs",  "/config_inputs.html");
+    web.addPageRoute("/config/outputs", "/config_outputs.html");
+    web.begin();
 }
 
 void loop() {
-  
-}
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
 }
