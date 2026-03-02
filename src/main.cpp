@@ -4,7 +4,10 @@
 
 WiFiManagerSimple wifi;
 
+// Build config first
 StaticFileServer::Config httpCfg;
+
+// Construct web with config AFTER httpCfg has defaults set in Config()
 StaticFileServer web(httpCfg);
 
 void setup() {
@@ -12,17 +15,18 @@ void setup() {
 
     // Start AP
     WiFiManagerSimple::APConfig ap;
-    ap.ssid = "UniversalController";
-    ap.password = "robotics123";
+    ap.ssid = "ESP32Controller";
+    ap.password = "12345678";
     wifi.beginAP(ap);
 
-    httpCfg.defaultFile = "/index.html";
-    web = StaticFileServer(httpCfg);
+    // DON'T reassign web. Configure via routes only.
     web.addPageRoute("/config/inputs",  "/config_inputs.html");
     web.addPageRoute("/config/outputs", "/config_outputs.html");
-    web.begin();
+
+    if (!web.begin()) {
+        Serial.println("Web server failed to start");
+        while (true) {}
+    }
 }
 
-void loop() {
-
-}
+void loop() {}
