@@ -41,6 +41,11 @@ function clamp01(v) {
   return v;
 }
 
+function isConfigInputsPage() {
+  // This is reliable because those elements only exist on that page.
+  return !!(gpStatusEl && channelGridEl);
+}
+
 // ---------- existing websocket page behavior (index.html) ----------
 function connectWebSocketIfPresent() {
   if (!statusEl) return; // not on that page
@@ -80,79 +85,153 @@ function connectWebSocketIfPresent() {
   }
 }
 
-// ---------- Logitech F310 (XInput / standard mapping) ----------
-// axes[0]=LS X, axes[1]=LS Y, axes[2]=RS X, axes[3]=RS Y
-// buttons[6]=LT analog (0..1), buttons[7]=RT analog (0..1)
+// ---------- controlmap.json integration ----------
+let controlMap = null;
 
-// Analog controls you can map to RC channels.
-const SOURCES = [
-  { id: "rt",  name: "Right Trigger (RT)", type: "01" },  // 0..1
-  { id: "lt",  name: "Left Trigger (LT)",  type: "01" },  // 0..1
-  { id: "lsx", name: "Left Stick X",       type: "11" },  // -1..1
-  { id: "lsy", name: "Left Stick Y",       type: "11" },  // -1..1
-  { id: "rsx", name: "Right Stick X",      type: "11" },  // -1..1
-  { id: "rsy", name: "Right Stick Y",      type: "11" },  // -1..1
-];
+// UI/runtime state derived from controlMap
+let CHANNEL_COUNT = 8;
+let SOURCES = [];   // {id, kind, label, range:[min,max]?}
+let AXES = [];      // subset of SOURCES where kind==="axis"
+let BUTTONS = [];   // subset where kind==="button"
 
-// Digital buttons to display + map.
-const BUTTONS = [
-  { id: "a",     name: "A" },
-  { id: "b",     name: "B" },
-  { id: "x",     name: "X" },
-  { id: "y",     name: "Y" },
-  { id: "lb",    name: "LB" },
-  { id: "rb",    name: "RB" },
-  { id: "back",  name: "Back" },
-  { id: "start", name: "Start" },
-  { id: "ls",    name: "L Stick Click" },
-  { id: "rs",    name: "R Stick Click" },
-  { id: "dup",   name: "D-pad Up" },
-  { id: "ddn",   name: "D-pad Down" },
-  { id: "dlt",   name: "D-pad Left" },
-  { id: "drt",   name: "D-pad Right" },
-];
-
-// How many RC channels exist on your ESP32 side (UI for now).
-const CHANNEL_COUNT = 20;
-
-// Mapping state (UI only for now)
-let analogMapping = [
-  { sourceId: "rt",  channel: 1 },
-  { sourceId: "lt",  channel: 2 },
-  { sourceId: "lsx", channel: 3 },
-  { sourceId: "lsy", channel: 4 },
-  { sourceId: "rsx", channel: 5 },
-  { sourceId: "rsy", channel: 6 },
-];
-
-let buttonMapping = [
-  { buttonId: "a",     channel: 7  },
-  { buttonId: "b",     channel: 8  },
-  { buttonId: "x",     channel: 9  },
-  { buttonId: "y",     channel: 10 },
-  { buttonId: "lb",    channel: 11 },
-  { buttonId: "rb",    channel: 12 },
-  { buttonId: "back",  channel: 13 },
-  { buttonId: "start", channel: 14 },
-  { buttonId: "ls",    channel: 15 },
-  { buttonId: "rs",    channel: 16 },
-  { buttonId: "dup",   channel: 17 },
-  { buttonId: "ddn",   channel: 18 },
-  { buttonId: "dlt",   channel: 19 },
-  { buttonId: "drt",   channel: 20 },
-];
+// mapping state is stored in controlMap.inputs.map_to_channels
+// but we keep quick lookup maps for UI updates
+let sourceToChannel = new Map();  // sourceId -> channelNumber (1..N)
+let sourceToXform = new Map();    // sourceId -> xform object (preserved)
 
 // DOM refs for fast updates
-const uiRefs = {};       // sourceId -> { valueEl, barFillEl, selectEl, sourceType }
-const buttonRefs = {};   // buttonId -> { pillEl, textEl, selectEl }
+const axisUiRefs = {};    // sourceId -> { valueEl, barFillEl, selectEl, rangeMin, rangeMax }
+const buttonUiRefs = {};  // sourceId -> { pillEl, textEl, selectEl }
 
-// Standard mapping button indices:
-// 0:A 1:B 2:X 3:Y 4:LB 5:RB 6:LT 7:RT 8:Back 9:Start 10:LS 11:RS 12:Up 13:Down 14:Left 15:Right
-function readGamepadState(gp) {
+function defaultControlMapFallback() {
+  // Minimal fallback so the UI still works if controlmap.json isn't present.
+  return {
+    version: 1,
+    channels: { count: 20 },
+    inputs: {
+      device: { type: "gamepad", model: "Logitech F310", mode: "xinput" },
+      sources: [
+        { id: "rt",  kind: "axis",   label: "Right Trigger", range: [0.0, 1.0] },
+        { id: "lt",  kind: "axis",   label: "Left Trigger",  range: [0.0, 1.0] },
+        { id: "lsx", kind: "axis",   label: "Left Stick X",  range: [-1.0, 1.0] },
+        { id: "lsy", kind: "axis",   label: "Left Stick Y",  range: [-1.0, 1.0] },
+        { id: "rsx", kind: "axis",   label: "Right Stick X", range: [-1.0, 1.0] },
+        { id: "rsy", kind: "axis",   label: "Right Stick Y", range: [-1.0, 1.0] },
+
+        { id: "a",     kind: "button", label: "A" },
+        { id: "b",     kind: "button", label: "B" },
+        { id: "x",     kind: "button", label: "X" },
+        { id: "y",     kind: "button", label: "Y" },
+        { id: "lb",    kind: "button", label: "LB" },
+        { id: "rb",    kind: "button", label: "RB" },
+        { id: "back",  kind: "button", label: "Back" },
+        { id: "start", kind: "button", label: "Start" },
+        { id: "ls",    kind: "button", label: "Left Stick Click" },
+        { id: "rs",    kind: "button", label: "Right Stick Click" },
+        { id: "dup",   kind: "button", label: "D-pad Up" },
+        { id: "ddn",   kind: "button", label: "D-pad Down" },
+        { id: "dlt",   kind: "button", label: "D-pad Left" },
+        { id: "drt",   kind: "button", label: "D-pad Right" }
+      ],
+      map_to_channels: [
+        { source: "rt",  ch: 1, xform: { type: "linear", scale: 1.0, offset: 0.0 } },
+        { source: "lt",  ch: 2, xform: { type: "linear", scale: 1.0, offset: 0.0 } },
+        { source: "lsx", ch: 3, xform: { type: "expo", deadband: 0.04, expo: 0.25, invert: false } },
+        { source: "lsy", ch: 4, xform: { type: "expo", deadband: 0.04, expo: 0.25, invert: true  } },
+        { source: "rsx", ch: 5, xform: { type: "expo", deadband: 0.04, expo: 0.25, invert: false } },
+        { source: "rsy", ch: 6, xform: { type: "expo", deadband: 0.04, expo: 0.25, invert: true  } },
+
+        { source: "a",     ch: 7,  xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "b",     ch: 8,  xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "x",     ch: 9,  xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "y",     ch: 10, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "lb",    ch: 11, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "rb",    ch: 12, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "back",  ch: 13, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "start", ch: 14, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "ls",    ch: 15, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "rs",    ch: 16, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "dup",   ch: 17, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "ddn",   ch: 18, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "dlt",   ch: 19, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "drt",   ch: 20, xform: { type: "button", on: 1.0, off: 0.0 } }
+      ]
+    }
+  };
+}
+
+async function loadControlMap() {
+  // cache-bust so you don't chase ghosts during development
+  const url = "/controlmap.json?v=" + Date.now();
+
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    return json;
+  } catch (e) {
+    appendLog(debugEl, `Failed to load /controlmap.json (${e.message}). Using fallback.`);
+    return defaultControlMapFallback();
+  }
+}
+
+function deriveRuntimeFromControlMap() {
+  CHANNEL_COUNT = controlMap?.channels?.count ?? 8;
+
+  SOURCES = Array.isArray(controlMap?.inputs?.sources) ? controlMap.inputs.sources : [];
+  AXES = SOURCES.filter(s => s && s.kind === "axis");
+  BUTTONS = SOURCES.filter(s => s && s.kind === "button");
+
+  sourceToChannel = new Map();
+  sourceToXform = new Map();
+
+  const m = Array.isArray(controlMap?.inputs?.map_to_channels) ? controlMap.inputs.map_to_channels : [];
+  for (const entry of m) {
+    if (!entry || typeof entry.source !== "string") continue;
+    if (typeof entry.ch === "number") sourceToChannel.set(entry.source, entry.ch);
+    if (entry.xform && typeof entry.xform === "object") sourceToXform.set(entry.source, entry.xform);
+  }
+}
+
+function buildChannelOptions(selectedChannel, includeNone) {
+  const opts = [];
+  if (includeNone) {
+    const sel = (selectedChannel == null) ? "selected" : "";
+    opts.push(`<option value="" ${sel}>None</option>`);
+  }
+  for (let ch = 1; ch <= CHANNEL_COUNT; ch++) {
+    const sel = (ch === selectedChannel) ? "selected" : "";
+    opts.push(`<option value="${ch}" ${sel}>C${ch}</option>`);
+  }
+  return opts.join("");
+}
+
+function getRangeForSource(src) {
+  // If range isn't specified, assume -1..1 for axis, 0..1 for button
+  if (Array.isArray(src.range) && src.range.length === 2) {
+    const a = Number(src.range[0]);
+    const b = Number(src.range[1]);
+    if (Number.isFinite(a) && Number.isFinite(b)) return [a, b];
+  }
+  if (src.kind === "axis") return [-1, 1];
+  return [0, 1];
+}
+
+function axisValueToPercent(v, min, max) {
+  // Map [min,max] to [0,100] (clamp).
+  if (max === min) return 0;
+  const t = (v - min) / (max - min);
+  return clamp(t, 0, 1) * 100;
+}
+
+// ---------- Gamepad (F310 XInput) readout ----------
+function readGamepadStateF310(gp) {
+  // Standard mapping: axes[0..3], buttons[0..15]
   const axes = gp.axes || [];
   const b = gp.buttons || [];
 
   const analog = {
+    // Triggers: standard mapping exposes as buttons[6],[7] values 0..1
     rt: clamp01(b[7]?.value ?? 0),
     lt: clamp01(b[6]?.value ?? 0),
     lsx: clamp(axes[0] ?? 0, -1, 1),
@@ -181,123 +260,86 @@ function readGamepadState(gp) {
   return { analog, digital };
 }
 
-function valueToPercent(sourceType, v) {
-  if (sourceType === "11") return (clamp(v, -1, 1) + 1) * 50; // -1..1 => 0..100
-  return clamp01(v) * 100; // 0..1 => 0..100
-}
-
-function formatValue(v) {
-  return v.toFixed(3);
-}
-
-function getAnalogMappedChannel(sourceId) {
-  const m = analogMapping.find(x => x.sourceId === sourceId);
-  return m ? m.channel : null;
-}
-
-function setAnalogMappedChannel(sourceId, channelOrNull) {
-  const idx = analogMapping.findIndex(x => x.sourceId === sourceId);
-  if (channelOrNull == null) {
-    if (idx >= 0) analogMapping.splice(idx, 1);
-    return;
-  }
-  if (idx >= 0) analogMapping[idx].channel = channelOrNull;
-  else analogMapping.push({ sourceId, channel: channelOrNull });
-}
-
-function getButtonMappedChannel(buttonId) {
-  const m = buttonMapping.find(x => x.buttonId === buttonId);
-  return m ? m.channel : null;
-}
-
-function setButtonMappedChannel(buttonId, channelOrNull) {
-  const idx = buttonMapping.findIndex(x => x.buttonId === buttonId);
-  if (channelOrNull == null) {
-    if (idx >= 0) buttonMapping.splice(idx, 1);
-    return;
-  }
-  if (idx >= 0) buttonMapping[idx].channel = channelOrNull;
-  else buttonMapping.push({ buttonId, channel: channelOrNull });
-}
-
-function buildChannelOptions(selectedChannel, includeNone) {
-  const opts = [];
-  if (includeNone) {
-    const sel = (selectedChannel == null) ? "selected" : "";
-    opts.push(`<option value="" ${sel}>None</option>`);
-  }
-  for (let ch = 1; ch <= CHANNEL_COUNT; ch++) {
-    const sel = (ch === selectedChannel) ? "selected" : "";
-    opts.push(`<option value="${ch}" ${sel}>C${ch}</option>`);
-  }
-  return opts.join("");
-}
-
-function buildUIIfPresent() {
-  if (!channelGridEl) return; // not on config_inputs.html
+function buildUIFromControlMap() {
+  if (!channelGridEl) return;
 
   channelGridEl.innerHTML = "";
   if (buttonGridEl) buttonGridEl.innerHTML = "";
 
-  // Analog cards
-  for (const src of SOURCES) {
-    const selected = getAnalogMappedChannel(src.id) ?? 1;
+  // Build AXIS cards
+  for (const src of AXES) {
+    const selected = sourceToChannel.get(src.id) ?? null;
+    const [rmin, rmax] = getRangeForSource(src);
 
     const card = document.createElement("div");
     card.className = "chanCard";
     card.innerHTML = `
       <div class="chanHeader">
-        <div class="chanName">${src.name}</div>
-        <div class="chanValue" id="val_${src.id}">0.000</div>
+        <div class="chanName">${src.label ?? src.id}</div>
+        <div class="chanValue" id="aval_${src.id}">0.000</div>
       </div>
 
       <div class="barOuter">
         <div class="barCenter"></div>
-        <div class="barFill" id="bar_${src.id}" style="width: 0%;"></div>
+        <div class="barFill" id="abar_${src.id}" style="width: 0%;"></div>
       </div>
 
       <div class="chanControls">
-        <label for="sel_${src.id}">Map to:</label>
-        <select id="sel_${src.id}">
-          ${buildChannelOptions(selected, false)}
+        <label for="asel_${src.id}">Map to:</label>
+        <select id="asel_${src.id}">
+          ${buildChannelOptions(selected, true)}
         </select>
       </div>
     `;
 
     channelGridEl.appendChild(card);
 
-    const valueEl = card.querySelector(`#val_${src.id}`);
-    const barFillEl = card.querySelector(`#bar_${src.id}`);
-    const selectEl = card.querySelector(`#sel_${src.id}`);
+    const valueEl = card.querySelector(`#aval_${src.id}`);
+    const barFillEl = card.querySelector(`#abar_${src.id}`);
+    const selectEl = card.querySelector(`#asel_${src.id}`);
 
     selectEl.addEventListener("change", () => {
-      const chNum = parseInt(selectEl.value, 10);
-      setAnalogMappedChannel(src.id, Number.isFinite(chNum) ? chNum : null);
-      appendLog(debugEl, `Analog mapping: ${src.id} -> C${chNum}`);
+      const raw = selectEl.value;
+      if (raw === "") {
+        sourceToChannel.delete(src.id);
+        appendLog(debugEl, `Mapping: ${src.id} -> None`);
+      } else {
+        const chNum = parseInt(raw, 10);
+        if (Number.isFinite(chNum)) {
+          sourceToChannel.set(src.id, chNum);
+          appendLog(debugEl, `Mapping: ${src.id} -> C${chNum}`);
+        }
+      }
     });
 
-    uiRefs[src.id] = { valueEl, barFillEl, selectEl, sourceType: src.type };
+    axisUiRefs[src.id] = {
+      valueEl,
+      barFillEl,
+      selectEl,
+      rangeMin: rmin,
+      rangeMax: rmax,
+    };
   }
 
-  // Button cards (with ON/OFF pill + dropdown)
+  // Build BUTTON cards
   if (buttonGridEl) {
-    for (const btn of BUTTONS) {
-      const selected = getButtonMappedChannel(btn.id); // may be null => None
+    for (const src of BUTTONS) {
+      const selected = sourceToChannel.get(src.id) ?? null;
 
       const card = document.createElement("div");
       card.className = "chanCard";
       card.innerHTML = `
         <div class="chanHeader">
-          <div class="chanName">${btn.name}</div>
-          <div class="pill" id="pill_${btn.id}">
+          <div class="chanName">${src.label ?? src.id}</div>
+          <div class="pill" id="bpill_${src.id}">
             <span class="pillDot"></span>
-            <span class="pillText" id="pilltxt_${btn.id}">OFF</span>
+            <span class="pillText" id="bpilltxt_${src.id}">OFF</span>
           </div>
         </div>
 
         <div class="chanControls">
-          <label for="bsel_${btn.id}">Map to:</label>
-          <select id="bsel_${btn.id}">
+          <label for="bsel_${src.id}">Map to:</label>
+          <select id="bsel_${src.id}">
             ${buildChannelOptions(selected, true)}
           </select>
         </div>
@@ -307,37 +349,54 @@ function buildUIIfPresent() {
 
       buttonGridEl.appendChild(card);
 
-      const pillEl = card.querySelector(`#pill_${btn.id}`);
-      const textEl = card.querySelector(`#pilltxt_${btn.id}`);
-      const selectEl = card.querySelector(`#bsel_${btn.id}`);
+      const pillEl = card.querySelector(`#bpill_${src.id}`);
+      const textEl = card.querySelector(`#bpilltxt_${src.id}`);
+      const selectEl = card.querySelector(`#bsel_${src.id}`);
 
       selectEl.addEventListener("change", () => {
         const raw = selectEl.value;
         if (raw === "") {
-          setButtonMappedChannel(btn.id, null);
-          appendLog(debugEl, `Button mapping: ${btn.id} -> None`);
-          return;
+          sourceToChannel.delete(src.id);
+          appendLog(debugEl, `Mapping: ${src.id} -> None`);
+        } else {
+          const chNum = parseInt(raw, 10);
+          if (Number.isFinite(chNum)) {
+            sourceToChannel.set(src.id, chNum);
+            appendLog(debugEl, `Mapping: ${src.id} -> C${chNum}`);
+          }
         }
-        const chNum = parseInt(raw, 10);
-        setButtonMappedChannel(btn.id, Number.isFinite(chNum) ? chNum : null);
-        appendLog(debugEl, `Button mapping: ${btn.id} -> C${chNum}`);
       });
 
-      buttonRefs[btn.id] = { pillEl, textEl, selectEl };
+      buttonUiRefs[src.id] = { pillEl, textEl, selectEl };
     }
   }
 
   if (saveBtn) {
     saveBtn.addEventListener("click", () => {
-      const payload = {
-        cmd: "save_input_mapping",
-        data: {
-          analogMapping: analogMapping.slice().sort((a, b) => a.channel - b.channel),
-          buttonMapping: buttonMapping.slice().sort((a, b) => a.channel - b.channel),
-        }
-      };
-      appendLog(debugEl, "Save pressed (TODO). Would send:");
-      appendLog(debugEl, JSON.stringify(payload));
+      // Rebuild inputs.map_to_channels from the current UI state,
+      // preserving each source's existing xform if any.
+      const list = [];
+
+      for (const src of SOURCES) {
+        const ch = sourceToChannel.get(src.id);
+        if (typeof ch !== "number") continue;
+
+        const xform = sourceToXform.get(src.id); // may be undefined
+        const entry = { source: src.id, ch };
+        if (xform) entry.xform = xform;
+        list.push(entry);
+      }
+
+      // Sort for readability by channel then source
+      list.sort((a, b) => (a.ch - b.ch) || a.source.localeCompare(b.source));
+
+      controlMap.inputs.map_to_channels = list;
+
+      appendLog(debugEl, "Save pressed (TODO). Updated controlMap would be:");
+      appendLog(debugEl, JSON.stringify(controlMap, null, 2));
+
+      // Later you can POST it:
+      // fetch("/api/controlmap", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(controlMap) })
     });
   }
 }
@@ -366,28 +425,31 @@ function renderGamepadFrame() {
 
   setStatus(gpStatusEl, `Controller: ${gp.id}`, "#00ff00");
 
-  const state = readGamepadState(gp);
+  // For now, we read the F310 standard layout. Later you can make this table-driven too.
+  const state = readGamepadStateF310(gp);
 
-  // Update analog UI
-  for (const src of SOURCES) {
-    const ref = uiRefs[src.id];
+  // Update axes UI
+  for (const src of AXES) {
+    const ref = axisUiRefs[src.id];
     if (!ref) continue;
 
-    const v = state.analog[src.id] ?? 0;
-    ref.valueEl.textContent = formatValue(v);
+    let v = 0;
+    // These IDs match our expected F310 ids. If you add more sources later,
+    // you'll also add readout code (or make it table-driven).
+    if (src.id in state.analog) v = state.analog[src.id];
 
-    const pct = valueToPercent(ref.sourceType, v);
+    ref.valueEl.textContent = Number(v).toFixed(3);
+    const pct = axisValueToPercent(v, ref.rangeMin, ref.rangeMax);
     ref.barFillEl.style.width = `${pct.toFixed(1)}%`;
   }
 
   // Update button UI
-  for (const btn of BUTTONS) {
-    const ref = buttonRefs[btn.id];
+  for (const src of BUTTONS) {
+    const ref = buttonUiRefs[src.id];
     if (!ref) continue;
 
-    const pressed = !!state.digital[btn.id];
+    const pressed = !!state.digital[src.id];
     ref.textEl.textContent = pressed ? "ON" : "OFF";
-
     if (pressed) ref.pillEl.classList.add("pillOn");
     else ref.pillEl.classList.remove("pillOn");
   }
@@ -395,11 +457,17 @@ function renderGamepadFrame() {
   gpRaf = requestAnimationFrame(renderGamepadFrame);
 }
 
-function startGamepadViewerIfPresent() {
-  if (!gpStatusEl) return; // not on config_inputs.html
+async function initConfigInputsPage() {
+  // Load + build UI from controlmap.json
+  controlMap = await loadControlMap();
+  deriveRuntimeFromControlMap();
 
-  buildUIIfPresent();
+  appendLog(debugEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
 
+  // Build UI
+  buildUIFromControlMap();
+
+  // Buttons
   if (startBtn) {
     startBtn.addEventListener("click", () => {
       if (gpRunning) return;
@@ -418,16 +486,17 @@ function startGamepadViewerIfPresent() {
   }
 
   window.addEventListener("gamepadconnected", (e) => {
-    const gp = e.gamepad;
-    appendLog(debugEl, `gamepadconnected: index=${gp.index} id=${gp.id}`);
+    appendLog(debugEl, `gamepadconnected: index=${e.gamepad.index} id=${e.gamepad.id}`);
   });
 
   window.addEventListener("gamepaddisconnected", (e) => {
-    const gp = e.gamepad;
-    appendLog(debugEl, `gamepaddisconnected: index=${gp.index} id=${gp.id}`);
+    appendLog(debugEl, `gamepaddisconnected: index=${e.gamepad.index} id=${e.gamepad.id}`);
   });
 }
 
 // ---------- init ----------
 connectWebSocketIfPresent();
-startGamepadViewerIfPresent();
+
+if (isConfigInputsPage()) {
+  initConfigInputsPage();
+}

@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "Default F310",
+    "created": "2026-03-02",
+    "notes": "XInput mapping"
+  },
+
+  "channels": {
+    "count": 20,
+    "defaults": {
+      "range": [-1.0, 1.0],
+      "neutral": 0.0
+    }
+  },
+
+  "inputs": {
+    "device": {
+      "type": "gamepad",
+      "model": "Logitech F310",
+      "mode": "xinput"
+    },
+
+    "sources": [
+      { "id": "rt",  "kind": "axis",   "label": "Right Trigger", "range": [0.0, 1.0] },
+      { "id": "lt",  "kind": "axis",   "label": "Left Trigger",  "range": [0.0, 1.0] },
+      { "id": "lsx", "kind": "axis",   "label": "Left Stick X",  "range": [-1.0, 1.0] },
+      { "id": "lsy", "kind": "axis",   "label": "Left Stick Y",  "range": [-1.0, 1.0] },
+      { "id": "rsx", "kind": "axis",   "label": "Right Stick X", "range": [-1.0, 1.0] },
+      { "id": "rsy", "kind": "axis",   "label": "Right Stick Y", "range": [-1.0, 1.0] },
+
+      { "id": "a",     "kind": "button", "label": "A" },
+      { "id": "b",     "kind": "button", "label": "B" },
+      { "id": "x",     "kind": "button", "label": "X" },
+      { "id": "y",     "kind": "button", "label": "Y" },
+      { "id": "lb",    "kind": "button", "label": "LB" },
+      { "id": "rb",    "kind": "button", "label": "RB" },
+      { "id": "back",  "kind": "button", "label": "Back" },
+      { "id": "start", "kind": "button", "label": "Start" },
+      { "id": "ls",    "kind": "button", "label": "Left Stick Click" },
+      { "id": "rs",    "kind": "button", "label": "Right Stick Click" },
+      { "id": "dup",   "kind": "button", "label": "D-pad Up" },
+      { "id": "ddn",   "kind": "button", "label": "D-pad Down" },
+      { "id": "dlt",   "kind": "button", "label": "D-pad Left" },
+      { "id": "drt",   "kind": "button", "label": "D-pad Right" }
+    ],
+
+    "map_to_channels": [
+      { "source": "rt",  "ch": 1,  "xform": { "type": "linear", "scale": 1.0, "offset": 0.0 } },
+      { "source": "lt",  "ch": 2,  "xform": { "type": "linear", "scale": 1.0, "offset": 0.0 } },
+      { "source": "lsx", "ch": 3,  "xform": { "type": "expo",   "deadband": 0.04, "expo": 0.25, "invert": false } },
+      { "source": "lsy", "ch": 4,  "xform": { "type": "expo",   "deadband": 0.04, "expo": 0.25, "invert": true  } },
+      { "source": "rsx", "ch": 5,  "xform": { "type": "expo",   "deadband": 0.04, "expo": 0.25, "invert": false } },
+      { "source": "rsy", "ch": 6,  "xform": { "type": "expo",   "deadband": 0.04, "expo": 0.25, "invert": true  } },
+
+      { "source": "a",     "ch": 7,  "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "b",     "ch": 8,  "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "x",     "ch": 9,  "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "y",     "ch": 10, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "lb",    "ch": 11, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "rb",    "ch": 12, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "back",  "ch": 13, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "start", "ch": 14, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "ls",    "ch": 15, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "rs",    "ch": 16, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "dup",   "ch": 17, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "ddn",   "ch": 18, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "dlt",   "ch": 19, "xform": { "type": "button", "on": 1.0, "off": 0.0 } },
+      { "source": "drt",   "ch": 20, "xform": { "type": "button", "on": 1.0, "off": 0.0 } }
+    ]
+  },
+
+  "failsafe": {
+    "timeout_ms": 300,
+    "on_timeout": { "mode": "neutral_all" }
+  },
+
+  "outputs": {
+    "definitions": [
+      {
+        "id": "left_drive",
+        "type": "motor_percent",
+        "driver": "bts7960",
+        "pins": { "pwm": 25, "in1": 26, "in2": 27 },
+        "source": { "mix": "tank", "throttle_ch": 4, "steer_ch": 3 },
+        "limits": { "min": -1.0, "max": 1.0 }
+      }
+    ]
+  }
+}
