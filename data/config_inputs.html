@@ -1,24 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Universal Controller</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/style.css">
+  <meta charset="UTF-8" />
+  <title>Config - Inputs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
-<div class="card">
-    <h1>Universal Controller</h1>
-    <p class="subtitle">Under Construction</p>
+<div class="card" style="max-width: 860px;">
+  <h1>Config: Inputs</h1>
+  <p class="subtitle">Logitech F310 (XInput) — live channel viewer (no sending yet)</p>
 
-    <div class="status" id="status">Disconnected</div>
+  <div class="status" id="gpStatus">No controller detected</div>
 
-    <button id="pingBtn">Send Ping</button>
+  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin: 10px 0;">
+    <button id="startBtn">Start Reading</button>
+    <button id="stopBtn">Stop</button>
+  </div>
 
-    <div class="log" id="log"></div>
+  <div class="grid" id="channelGrid"></div>
+
+  <div class="sectionTitle">Buttons</div>
+  <div class="grid" id="buttonGrid"></div>
+
+  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+    <button id="saveBtn">Save Mapping (TODO)</button>
+  </div>
+
+  <div class="log" id="debug"></div>
+
+  <div style="margin-top: 12px; opacity:0.85; font-size: 13px; text-align:left;">
+    Notes:
+    <ul style="margin: 6px 0 0 18px;">
+      <li>F310 in <b>X</b> mode uses the standard Gamepad mapping.</li>
+      <li>Bar values update live; dropdowns are your future channel assignment UI.</li>
+    </ul>
+  </div>
 </div>
 
-<script src="/script.js"></script>
+<script src="/app.js"></script>
 </body>
 </html>

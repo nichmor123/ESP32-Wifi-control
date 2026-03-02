@@ -38,14 +38,14 @@ function connect() {
 }
 
 function sendPing() {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        log("WebSocket not connected");
-        return;
-    }
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    log("WebSocket not connected");
+    return;
+  }
 
-    const message = { cmd: "ping" };
-    ws.send(JSON.stringify(message));
-    log("TX: " + JSON.stringify(message));
+  const payload = JSON.stringify({ cmd: "ping" });
+  ws.send(payload);
+  log("TX: " + payload);
 }
 
 pingBtn.addEventListener("click", sendPing);

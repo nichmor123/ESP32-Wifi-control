@@ -59,3 +59,149 @@ button:hover {
     overflow-y: auto;
     text-align: left;
 }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+@media (min-width: 820px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.chanCard {
+  background: #141414;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.35);
+  text-align: left;
+}
+
+.chanHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.chanName {
+  font-weight: 700;
+  color: #00ffcc;
+}
+
+.chanValue {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  opacity: 0.9;
+}
+
+.barOuter {
+  background: #000;
+  border-radius: 10px;
+  height: 18px;
+  overflow: hidden;
+  position: relative;
+}
+
+.barFill {
+  height: 100%;
+  width: 50%;
+  background: #00ffcc;
+  opacity: 0.9;
+  transform-origin: left center;
+}
+
+.barCenter {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(255,255,255,0.25);
+}
+
+.chanControls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.chanControls label {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+select {
+  background: #0c0c0c;
+  color: #eee;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.sectionTitle {
+  margin-top: 18px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #00ffcc;
+  text-align: left;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #333;
+  background: #0c0c0c;
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.pillDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.20);
+  box-shadow: 0 0 10px rgba(255,255,255,0.05);
+}
+
+.pillOn .pillDot {
+  background: #00ffcc;
+  box-shadow: 0 0 14px rgba(0,255,204,0.55);
+}
+
+.pillText {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+/* --- page scrolling sanity --- */
+html, body {
+  height: auto;
+  min-height: 100%;
+  overflow-y: auto;
+}
+
+/* If your base CSS set body to display:flex / height:100vh, this prevents scroll lock */
+body {
+  display: block !important;
+}
+
+/* Let the main card expand naturally instead of behaving like a fixed panel */
+.card {
+  height: auto !important;
+  max-height: none !important;
+}
+
+/* Logs should scroll internally, but not take over the whole page */
+.log {
+  max-height: 220px;
+  overflow-y: auto;
+}
