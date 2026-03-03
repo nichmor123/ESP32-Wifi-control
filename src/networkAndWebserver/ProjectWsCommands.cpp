@@ -4,6 +4,9 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 
+#include <FS.h>
+#include <LittleFS.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/portmacro.h"
 
@@ -19,7 +22,6 @@ static inline float clampf(float x, float lo, float hi) {
 }
 
 static void set_channels_from_array(JsonVariantConst arr) {
-    // arr: JSON array of floats
     for (uint8_t i = 0; i < ChannelBus::N; i++) {
         if (arr[i].isNull()) break;
         float v = arr[i].as<float>();
@@ -28,8 +30,6 @@ static void set_channels_from_array(JsonVariantConst arr) {
 }
 
 static void set_channels_from_Ckeys(JsonVariantConst data) {
-    // Legacy keys: C1..CN (scales with N)
-    // Note: key buffer supports C1..C255 with N uint8_t.
     char key[6]; // "C255" + null
     for (uint8_t i = 0; i < ChannelBus::N; i++) {
         snprintf(key, sizeof(key), "C%u", (unsigned)(i + 1));
@@ -40,6 +40,70 @@ static void set_channels_from_Ckeys(JsonVariantConst data) {
     }
 }
 
+static bool ensureLittleFS() {
+    static bool mounted = false;
+    if (mounted) return true;
+
+    // do NOT format automatically here
+    if (!LittleFS.begin(false)) return false;
+    mounted = true;
+    return true;
+}
+
+static bool writeRawFileAtomic(const char* path, const char* text) {
+    const char* tmpPath = "/controlmap.tmp";
+
+    {
+        File f = LittleFS.open(tmpPath, "w");
+        if (!f) return false;
+        size_t n = f.print(text);
+        f.flush();
+        f.close();
+        if (n == 0) {
+            LittleFS.remove(tmpPath);
+            return false;
+        }
+    }
+
+    LittleFS.remove(path);
+    if (!LittleFS.rename(tmpPath, path)) {
+        LittleFS.remove(tmpPath);
+        return false;
+    }
+    return true;
+}
+
+static bool writeJsonAtomic(const char* path, JsonVariantConst json) {
+    const char* tmpPath = "/controlmap.tmp";
+
+    {
+        File f = LittleFS.open(tmpPath, "w");
+        if (!f) return false;
+        if (serializeJson(json, f) == 0) {
+            f.close();
+            LittleFS.remove(tmpPath);
+            return false;
+        }
+        f.flush();
+        f.close();
+    }
+
+    LittleFS.remove(path);
+    if (!LittleFS.rename(tmpPath, path)) {
+        LittleFS.remove(tmpPath);
+        return false;
+    }
+    return true;
+}
+
+static bool loadJsonFile(const char* path, JsonDocument& outDoc) {
+    File f = LittleFS.open(path, "r");
+    if (!f) return false;
+    DeserializationError err = deserializeJson(outDoc, f);
+    f.close();
+    return !err;
+}
+
 // ---- handlers ----
 
 static void cmd_ping(AsyncWebSocketClient* client, JsonVariantConst, JsonDocument&) {
@@ -47,12 +111,6 @@ static void cmd_ping(AsyncWebSocketClient* client, JsonVariantConst, JsonDocumen
 }
 
 static void cmd_set_inputs(AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument&) {
-    // Supports either:
-    // A) {"cmd":"set_inputs","data":{"ch":[...N floats...]}}
-    // B) {"cmd":"set_inputs","data":{"C1":..., "C2":..., ... "CN":...}}  (legacy)
-    //
-    // Channel range assumed: -1.0 .. +1.0
-
     const uint32_t now = millis();
 
     portENTER_CRITICAL(&g_busMux);
@@ -70,12 +128,70 @@ static void cmd_set_inputs(AsyncWebSocketClient* client, JsonVariantConst data, 
     client->text("{\"ok\":true}");
 }
 
-// ---- public API ----
+// Save mapping into /controlmap.json
+static void cmd_save_input_mapping(AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument&) {
+    // Supported forms:
+    // A) {"cmd":"save_input_mapping","data":{"controlMapText":"{...json text...}"}}
+    // B) {"cmd":"save_input_mapping","data":{"controlMap":{...json object...}}}
+    // C) {"cmd":"save_input_mapping","data":{"map_to_channels":[...]}}   (patch existing file)
+
+    if (!ensureLittleFS()) {
+        client->text("{\"ok\":false,\"err\":\"littlefs_not_mounted\"}");
+        return;
+    }
+
+    const char* path = "/controlmap.json";
+
+    // A) Recommended: raw JSON text (avoids big nested parsing)
+    if (!data["controlMapText"].isNull() && data["controlMapText"].is<const char*>()) {
+        const char* text = data["controlMapText"].as<const char*>();
+        bool ok = writeRawFileAtomic(path, text);
+        client->text(ok ? "{\"ok\":true}" : "{\"ok\":false,\"err\":\"write_failed\"}");
+        return;
+    }
+
+    // B) Full object
+    if (!data["controlMap"].isNull() && data["controlMap"].is<JsonObjectConst>()) {
+        bool ok = writeJsonAtomic(path, data["controlMap"]);
+        client->text(ok ? "{\"ok\":true}" : "{\"ok\":false,\"err\":\"write_failed\"}");
+        return;
+    }
+
+    // C) Patch only inputs.map_to_channels
+    if (!data["map_to_channels"].isNull() && data["map_to_channels"].is<JsonArrayConst>()) {
+        // This buffer only needs to hold the existing controlmap + new mapping list.
+        // If you later add lots of outputs/etc, bump this.
+        StaticJsonDocument<24576> doc;
+        if (!loadJsonFile(path, doc)) {
+            client->text("{\"ok\":false,\"err\":\"load_controlmap_failed\"}");
+            return;
+        }
+
+        JsonObject inputs = doc["inputs"].to<JsonObject>();
+        if (inputs.isNull()) inputs = doc.createNestedObject("inputs");
+
+        inputs.remove("map_to_channels");
+        JsonArray dst = inputs.createNestedArray("map_to_channels");
+
+        for (JsonVariantConst v : data["map_to_channels"].as<JsonArrayConst>()) {
+            dst.add(v);
+        }
+
+        bool ok = writeJsonAtomic(path, doc.as<JsonVariantConst>());
+        client->text(ok ? "{\"ok\":true}" : "{\"ok\":false,\"err\":\"write_failed\"}");
+        return;
+    }
+
+    client->text("{\"ok\":false,\"err\":\"bad_request\"}");
+}
+
+// ---- registration ----
 
 void RegisterProjectWsCommands(WsCommandServer& ws) {
     Serial.println("Registering WS commands...");
     ws.on("ping", cmd_ping);
     ws.on("set_inputs", cmd_set_inputs);
+    ws.on("save_input_mapping", cmd_save_input_mapping);
 }
 
 ChannelBus GetChannelBusSnapshot() {

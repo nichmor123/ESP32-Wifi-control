@@ -99,27 +99,34 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
 void WsCommandServer::handleTextMessage(AsyncWebSocketClient* client,
                                         const uint8_t* data,
                                         size_t len) {
-    if (!client) return;
+    if (!client || !data || len == 0) return;
 
-    // Make a null-terminated copy of the payload
-    String msg;
-    msg.reserve(len + 1);
-    for (size_t i = 0; i < len; i++) msg += (char)data[i];
-
+    // Debug print raw payload (truncate to avoid spamming serial)
+    const size_t kMaxPrint = 300;
     Serial.print("WS raw: ");
-    Serial.println(msg);
+    for (size_t i = 0; i < len && i < kMaxPrint; i++) Serial.print((char)data[i]);
+    if (len > kMaxPrint) Serial.print("...<truncated>");
+    Serial.println();
 
-    StaticJsonDocument<1024> doc;
-    DeserializationError err = deserializeJson(doc, msg);
+    // IMPORTANT:
+    // - Parse directly from the buffer WITH LENGTH.
+    // - Don't build a String.
+    //
+    // Size guidance:
+    // - ping/set_inputs: small (<1 KB)
+    // - save_input_mapping with controlMapText: still small wrapper, BUT the string field
+    //   increases required capacity somewhat.
+    // Start with 8 KB; bump if you add more big commands.
+    StaticJsonDocument<8192> doc;
+
+    DeserializationError err = deserializeJson(doc, (const char*)data, len);
     if (err) {
         Serial.printf("WS bad_json: %s\n", err.c_str());
         client->text("{\"err\":\"bad_json\"}");
         return;
     }
 
-    // Explicit extraction (robust across ArduinoJson versions)
     const char* cmd = doc["cmd"].as<const char*>();
-
     Serial.printf("WS RX cmd='%s' registered=%u\n", cmd ? cmd : "NULL", (unsigned)_count);
 
     Handler h = findHandler(cmd);

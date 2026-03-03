@@ -14,6 +14,16 @@ const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const saveBtn = document.getElementById("saveBtn");
 
+function wsIsOpen() {
+  return ws && ws.readyState === WebSocket.OPEN;
+}
+
+function wsSendJson(obj) {
+  if (!wsIsOpen()) return false;
+  ws.send(JSON.stringify(obj));
+  return true;
+}
+
 // ---------- shared helpers ----------
 function appendLog(targetEl, msg) {
   if (!targetEl) return;
@@ -48,39 +58,40 @@ function isConfigInputsPage() {
 
 // ---------- existing websocket page behavior (index.html) ----------
 function connectWebSocketIfPresent() {
-  if (!statusEl) return; // not on that page
+  // connect if we're on index OR config page
+  if (!statusEl && !isConfigInputsPage()) return;
 
   const protocol = location.protocol === "https:" ? "wss://" : "ws://";
   ws = new WebSocket(protocol + location.host + "/ws");
 
   ws.onopen = () => {
-    setStatus(statusEl, "Connected", "#00ff00");
-    appendLog(logEl, "WebSocket connected");
+    if (statusEl) setStatus(statusEl, "Connected", "#00ff00");
+    appendLog(logEl || debugEl, "WebSocket connected");
   };
 
   ws.onclose = () => {
-    setStatus(statusEl, "Disconnected", "#ff4444");
-    appendLog(logEl, "WebSocket disconnected");
+    if (statusEl) setStatus(statusEl, "Disconnected", "#ff4444");
+    appendLog(logEl || debugEl, "WebSocket disconnected");
     setTimeout(connectWebSocketIfPresent, 2000);
   };
 
   ws.onerror = () => {
-    appendLog(logEl, "WebSocket error");
+    appendLog(logEl || debugEl, "WebSocket error");
   };
 
   ws.onmessage = (event) => {
-    appendLog(logEl, "RX: " + event.data);
+    appendLog(logEl || debugEl, "RX: " + event.data);
   };
 
   if (pingBtn) {
     pingBtn.addEventListener("click", () => {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        appendLog(logEl, "WebSocket not connected");
+      if (!wsIsOpen()) {
+        appendLog(logEl || debugEl, "WebSocket not connected");
         return;
       }
-      const payload = JSON.stringify({ cmd: "ping" });
-      ws.send(payload);
-      appendLog(logEl, "TX: " + payload);
+      const payload = { cmd: "ping" };
+      wsSendJson(payload);
+      appendLog(logEl || debugEl, "TX: " + JSON.stringify(payload));
     });
   }
 }
@@ -371,34 +382,40 @@ function buildUIFromControlMap() {
     }
   }
 
-  if (saveBtn) {
-    saveBtn.addEventListener("click", () => {
-      // Rebuild inputs.map_to_channels from the current UI state,
-      // preserving each source's existing xform if any.
-      const list = [];
+if (saveBtn) {
+  saveBtn.onclick = () => {
+    // Rebuild inputs.map_to_channels from the current UI state,
+    // preserving each source's existing xform if any.
+    const list = [];
 
-      for (const src of SOURCES) {
-        const ch = sourceToChannel.get(src.id);
-        if (typeof ch !== "number") continue;
+    for (const src of SOURCES) {
+      const ch = sourceToChannel.get(src.id);
+      if (typeof ch !== "number") continue;
 
-        const xform = sourceToXform.get(src.id); // may be undefined
-        const entry = { source: src.id, ch };
-        if (xform) entry.xform = xform;
-        list.push(entry);
-      }
+      const xform = sourceToXform.get(src.id); // may be undefined
+      const entry = { source: src.id, ch };
+      if (xform) entry.xform = xform;
+      list.push(entry);
+    }
 
-      // Sort for readability by channel then source
-      list.sort((a, b) => (a.ch - b.ch) || a.source.localeCompare(b.source));
+    list.sort((a, b) => (a.ch - b.ch) || a.source.localeCompare(b.source));
+    controlMap.inputs.map_to_channels = list;
 
-      controlMap.inputs.map_to_channels = list;
+    // Recommended: send the control map as TEXT so the ESP doesn't have to
+    // parse a huge nested object inside the websocket wrapper.
+    const msg = {
+      cmd: "save_input_mapping",
+      data: { controlMapText: JSON.stringify(controlMap) }
+    };
 
-      appendLog(debugEl, "Save pressed (TODO). Updated controlMap would be:");
-      appendLog(debugEl, JSON.stringify(controlMap, null, 2));
+    if (!wsSendJson(msg)) {
+      appendLog(debugEl, "Save failed: WebSocket not connected");
+      return;
+    }
 
-      // Later you can POST it:
-      // fetch("/api/controlmap", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(controlMap) })
-    });
-  }
+    appendLog(debugEl, "TX: save_input_mapping (controlMapText)");
+  };
+}
 }
 
 // ---------- gamepad loop ----------
