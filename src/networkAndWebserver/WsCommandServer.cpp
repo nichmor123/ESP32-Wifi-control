@@ -2,6 +2,35 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 
+// Simple per-client buffering.
+// Good enough for your project: one outstanding message per client.
+struct WsRxBuffer {
+    uint32_t clientId = 0;
+    size_t expectedLen = 0;
+    size_t filled = 0;
+    String buf;
+    bool active = false;
+
+    void reset(uint32_t id, size_t len) {
+        clientId = id;
+        expectedLen = len;
+        filled = 0;
+        buf = "";
+        buf.reserve(len + 1);
+        active = true;
+    }
+
+    void clear() {
+        clientId = 0;
+        expectedLen = 0;
+        filled = 0;
+        buf = "";
+        active = false;
+    }
+};
+
+static WsRxBuffer g_rx;
+
 WsCommandServer::WsCommandServer(const char* wsPath)
     : _ws(wsPath) {}
 
@@ -12,7 +41,6 @@ void WsCommandServer::attachTo(AsyncWebServer& server) {
 bool WsCommandServer::on(const char* cmd, Handler handler) {
     if (!cmd || !handler) return false;
 
-    // Replace if exists
     for (size_t i = 0; i < _count; i++) {
         if (strcmp(_entries[i].cmd, cmd) == 0) {
             _entries[i].handler = handler;
@@ -73,6 +101,10 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
 
         case WS_EVT_DISCONNECT:
             Serial.printf("WS client disconnected: id=%u\n", client ? client->id() : 0);
+            // If the disconnected client was buffering, clear it
+            if (client && g_rx.active && g_rx.clientId == client->id()) {
+                g_rx.clear();
+            }
             break;
 
         case WS_EVT_DATA: {
@@ -81,13 +113,46 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
 
             if (info->opcode != WS_TEXT) return;
 
-            // Keep it simple: require one complete frame
-            if (!info->final || info->index != 0) {
-                client->text("{\"err\":\"fragmented_frame_not_supported\"}");
+            // info->len is TOTAL message length (bytes) for this frame sequence
+            // info->index is offset into the message
+            // len is the current chunk length
+
+            // Start of a new message
+            if (info->index == 0) {
+                // If we were mid-message for this client, drop it
+                if (g_rx.active && g_rx.clientId == client->id()) {
+                    Serial.println("WS: dropping previous incomplete message");
+                    g_rx.clear();
+                }
+                g_rx.reset(client->id(), info->len);
+
+                // Basic sanity limit (tune as you like)
+                if (g_rx.expectedLen > 20000) {
+                    Serial.printf("WS: message too large (%u bytes)\n", (unsigned)g_rx.expectedLen);
+                    g_rx.clear();
+                    client->text("{\"err\":\"msg_too_large\"}");
+                    return;
+                }
+            }
+
+            // If we aren't buffering for this client, ignore
+            if (!g_rx.active || g_rx.clientId != client->id()) {
+                Serial.println("WS: chunk for unexpected client (ignored)");
                 return;
             }
 
-            handleTextMessage(client, data, len);
+            // Append this chunk
+            for (size_t i = 0; i < len; i++) g_rx.buf += (char)data[i];
+            g_rx.filled = info->index + len;
+
+            // Done?
+            if (info->final && g_rx.filled >= g_rx.expectedLen) {
+                // Null-terminate (String already is, but keep it explicit)
+                // Parse full message now
+                this->handleTextMessage(client, (const uint8_t*)g_rx.buf.c_str(), g_rx.buf.length());
+                g_rx.clear();
+            }
+
             break;
         }
 
@@ -101,23 +166,16 @@ void WsCommandServer::handleTextMessage(AsyncWebSocketClient* client,
                                         size_t len) {
     if (!client || !data || len == 0) return;
 
-    // Debug print raw payload (truncate to avoid spamming serial)
-    const size_t kMaxPrint = 300;
+    // Print a small prefix
+    const size_t kMaxPrint = 220;
     Serial.print("WS raw: ");
     for (size_t i = 0; i < len && i < kMaxPrint; i++) Serial.print((char)data[i]);
     if (len > kMaxPrint) Serial.print("...<truncated>");
     Serial.println();
 
-    // IMPORTANT:
-    // - Parse directly from the buffer WITH LENGTH.
-    // - Don't build a String.
-    //
-    // Size guidance:
-    // - ping/set_inputs: small (<1 KB)
-    // - save_input_mapping with controlMapText: still small wrapper, BUT the string field
-    //   increases required capacity somewhat.
-    // Start with 8 KB; bump if you add more big commands.
-    StaticJsonDocument<8192> doc;
+    // Now we can parse safely because we have the full message
+    // 8KB is usually fine for the wrapper + string field, but bump if needed.
+    StaticJsonDocument<12288> doc;
 
     DeserializationError err = deserializeJson(doc, (const char*)data, len);
     if (err) {
