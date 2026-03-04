@@ -74,7 +74,7 @@ static bool writeRawFileAtomic(const char* path, const char* text) {
 }
 
 static bool writeJsonAtomic(const char* path, JsonVariantConst json) {
-    const char* tmpPath = "/controlMap.tmp";
+    const char* tmpPath = "/controlmap.tmp";
 
     {
         File f = LittleFS.open(tmpPath, "w");

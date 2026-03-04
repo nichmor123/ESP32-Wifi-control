@@ -6,39 +6,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="/style.css">
 </head>
+
 <body>
 
-<div class="card" style="max-width: 860px;">
-  <h1>Config: Inputs</h1>
-  <p class="subtitle">Logitech F310 (XInput) — live channel viewer (no sending yet)</p>
+<div class="layout">
 
-  <div class="status" id="gpStatus">No controller detected</div>
+  <!-- Left Navigation -->
+  <aside class="nav">
 
-  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin: 10px 0;">
-    <button id="startBtn">Start Reading</button>
-    <button id="stopBtn">Stop</button>
-  </div>
+    <div class="navTitle">Controller</div>
 
-  <div class="grid" id="channelGrid"></div>
+    <a href="/">Main</a>
+    <a href="/config/inputs">Input Mapping</a>
+    <a href="/config/outputs">Output Mapping</a>
 
-  <div class="sectionTitle">Buttons</div>
-  <div class="grid" id="buttonGrid"></div>
+  </aside>
 
-  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
-    <button id="saveBtn">Save Mapping (TODO)</button>
-  </div>
+  <!-- Main Page Content -->
+  <main class="page">
 
-  <div class="log" id="debug"></div>
+    <div class="card" style="max-width: 860px;">
 
-  <div style="margin-top: 12px; opacity:0.85; font-size: 13px; text-align:left;">
-    Notes:
-    <ul style="margin: 6px 0 0 18px;">
-      <li>F310 in <b>X</b> mode uses the standard Gamepad mapping.</li>
-      <li>Bar values update live; dropdowns are your future channel assignment UI.</li>
-    </ul>
-  </div>
+      <h1>Config: Inputs</h1>
+      <p class="subtitle">
+        Configure inputs from controller (only Xbox-style controllers for now)
+      </p>
+
+      <div class="status" id="gpStatus">No controller detected</div>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin: 10px 0;">
+        <button id="startBtn">Start Reading</button>
+        <button id="stopBtn">Stop</button>
+      </div>
+
+      <div class="grid" id="channelGrid"></div>
+
+      <div class="sectionTitle">Buttons</div>
+      <div class="grid" id="buttonGrid"></div>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+        <button id="saveBtn">Save Mapping</button>
+      </div>
+
+      <div class="log" id="debug"></div>
+
+      <div style="margin-top: 12px; opacity:0.85; font-size: 13px; text-align:left;">
+        Notes:
+        <ul style="margin: 6px 0 0 18px;">
+          <li>F310 in <b>X</b> mode uses the standard Gamepad mapping.</li>
+          <li>Bar values update live; dropdowns are your channel assignment UI.</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </main>
+
 </div>
 
 <script src="/app.js"></script>
+
 </body>
 </html>

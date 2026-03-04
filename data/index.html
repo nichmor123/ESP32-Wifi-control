@@ -6,19 +6,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/style.css">
 </head>
+
 <body>
 
-<div class="card">
-    <h1>Universal Controller</h1>
-    <p class="subtitle">Under Construction</p>
+<div class="layout">
 
-    <div class="status" id="status">Disconnected</div>
+    <!-- Left Navigation -->
+    <aside class="nav">
 
-    <button id="pingBtn">Send Ping</button>
+        <div class="navTitle">Controller</div>
 
-    <div class="log" id="log"></div>
+        <a href="/">Main</a>
+        <a href="/config/inputs">Input Mapping</a>
+        <a href="/config/outputs">Output Mapping</a>
+
+    </aside>
+
+    <!-- Main Page Content -->
+    <main class="page">
+
+        <div class="card">
+
+            <h1>Universal Controller</h1>
+            <p class="subtitle">Under Construction</p>
+
+            <div class="status" id="status">Disconnected</div>
+
+            <button id="pingBtn">Send Ping</button>
+
+            <div class="log" id="log"></div>
+
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:14px;">
+                <button id="sendToggleBtn">Start Sending</button>
+            </div>
+
+            <div class="sectionTitle" style="margin-top:18px;">Channels Out</div>
+            <div class="grid" id="txChannelGrid"></div>
+
+        </div>
+
+    </main>
+
 </div>
 
-<script src="/script.js"></script>
+<script src="/app.js"></script>
+
 </body>
 </html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Config - Outputs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+<div class="layout">
+
+  <!-- Left Navigation -->
+  <aside class="nav">
+
+    <div class="navTitle">Controller</div>
+
+    <a href="/">Main</a>
+    <a href="/config/inputs">Input Mapping</a>
+    <a href="/config/outputs">Output Mapping</a>
+
+  </aside>
+
+  <!-- Main Content -->
+  <main class="page">
+
+    <div class="card" style="max-width: 860px;">
+
+      <h1>Config: Outputs</h1>
+      <p class="subtitle">Configure how channels map to hardware outputs</p>
+
+      <div class="sectionTitle">Status</div>
+
+      <div class="pill">
+        <span class="pillDot"></span>
+        <span class="pillText">Feature in progress</span>
+      </div>
+
+      <div class="sectionTitle" style="margin-top:20px;">Planned Features</div>
+
+      <div class="log" style="max-height:none;">
+        <ul style="margin:0 0 0 18px;">
+          <li>Channel → motor output mapping</li>
+          <li>PWM / servo / digital output selection</li>
+          <li>Output inversion</li>
+          <li>Output scaling</li>
+          <li>Failsafe behavior</li>
+          <li>Output testing tools</li>
+        </ul>
+      </div>
+
+      <div style="margin-top:20px; opacity:0.8; font-size:13px; text-align:left;">
+        This page will allow configuring how input channels drive physical
+        outputs on the ESP32 (motor drivers, servos, GPIO, etc).
+      </div>
+
+    </div>
+
+  </main>
+
+</div>
+
+</body>
+</html>

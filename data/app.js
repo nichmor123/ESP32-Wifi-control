@@ -4,6 +4,8 @@ let ws;
 const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
 const pingBtn = document.getElementById("pingBtn");
+const sendToggleBtn = document.getElementById("sendToggleBtn");
+const txChannelGridEl = document.getElementById("txChannelGrid");
 
 // Config Inputs page elements (exist on config_inputs.html)
 const gpStatusEl = document.getElementById("gpStatus");
@@ -13,6 +15,7 @@ const debugEl = document.getElementById("debug");
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const saveBtn = document.getElementById("saveBtn");
+
 
 function wsIsOpen() {
   return ws && ws.readyState === WebSocket.OPEN;
@@ -25,6 +28,196 @@ function wsSendJson(obj) {
 }
 
 // ---------- shared helpers ----------
+function isIndexPage() {
+  return !!(sendToggleBtn && txChannelGridEl);
+}
+
+function rangeToPercent(v, min, max) {
+  if (max === min) return 0;
+  const t = (v - min) / (max - min);
+  return clamp(t, 0, 1) * 100;
+}
+
+function getSourceKind(sourceId) {
+  const src = SOURCES.find(s => s.id === sourceId);
+  return src ? src.kind : null;
+}
+
+function defaultXformForKind(kind) {
+  if (kind === "button") return { type: "button", on: 1.0, off: 0.0 };
+  return { type: "linear", scale: 1.0, offset: 0.0 };
+}
+
+// Apply xform from controlmap.json (minimal set: linear/expo/button)
+function applyXform(raw, kind, xform) {
+  const xf = xform || defaultXformForKind(kind);
+
+  if (xf.type === "button") {
+    // raw is boolean or 0/1-ish
+    const pressed = !!raw;
+    return pressed ? (xf.on ?? 1.0) : (xf.off ?? 0.0);
+  }
+
+  // Axis transforms assume raw is -1..1 or 0..1 (we keep as-is unless told otherwise)
+  let v = Number(raw) || 0;
+
+  if (xf.invert) v = -v;
+
+  // deadband (for -1..1 axes)
+  if (typeof xf.deadband === "number" && xf.deadband > 0) {
+    const db = xf.deadband;
+    if (Math.abs(v) < db) v = 0;
+    else {
+      // rescale outside deadband back to full range
+      const sign = v >= 0 ? 1 : -1;
+      v = sign * (Math.abs(v) - db) / (1.0 - db);
+    }
+  }
+
+  // expo (classic RC-ish)
+  if (typeof xf.expo === "number") {
+    const e = clamp(xf.expo, 0, 1);
+    // v' = (1-e)*v + e*v^3
+    v = (1.0 - e) * v + e * v * v * v;
+  }
+
+  // linear scale/offset
+  if (typeof xf.scale === "number") v *= xf.scale;
+  if (typeof xf.offset === "number") v += xf.offset;
+
+  // clamp to [-1,1] by default
+  v = clamp(v, -1, 1);
+  return v;
+}
+
+function computeChannelsFromState(state) {
+  // state.analog: {rt,lt,lsx,...}
+  // state.digital: {a,b,x,...}
+  const out = new Array(CHANNEL_COUNT).fill(0);
+
+  const mappings = Array.isArray(controlMap?.inputs?.map_to_channels)
+    ? controlMap.inputs.map_to_channels
+    : [];
+
+  for (const m of mappings) {
+    if (!m || typeof m.source !== "string" || typeof m.ch !== "number") continue;
+    const chIdx = m.ch - 1;
+    if (chIdx < 0 || chIdx >= CHANNEL_COUNT) continue;
+
+    const kind = getSourceKind(m.source);
+    if (!kind) continue;
+
+    let raw;
+    if (kind === "axis") raw = state.analog[m.source] ?? 0;
+    else raw = state.digital[m.source] ?? false;
+
+    const v = applyXform(raw, kind, m.xform);
+    out[chIdx] = v;
+  }
+
+  return out;
+}
+
+let sendingEnabled = false;
+let sendRaf = 0;
+let lastSendMs = 0;
+const SEND_HZ = 50; // 50 Hz feels RC-ish
+
+function updateSendButtonUi() {
+  if (!sendToggleBtn) return;
+  sendToggleBtn.textContent = sendingEnabled ? "Stop Sending" : "Start Sending";
+}
+
+function stopSending(reason) {
+  if (!sendingEnabled) return;
+  sendingEnabled = false;
+  updateSendButtonUi();
+  appendLog(logEl || debugEl, reason ? `STOP: ${reason}` : "STOP");
+}
+
+function startSending() {
+  if (sendingEnabled) return;
+  if (!wsIsOpen()) {
+    appendLog(logEl || debugEl, "Can't start: WebSocket not connected");
+    return;
+  }
+  sendingEnabled = true;
+  updateSendButtonUi();
+  appendLog(logEl || debugEl, "START sending inputs");
+}
+
+function sendLoopFrame() {
+  if (!sendingEnabled) return;
+
+  const gp = getFirstGamepad();
+  if (!gp) {
+    stopSending("no controller");
+    return;
+  }
+
+  const now = performance.now();
+  const periodMs = 1000 / SEND_HZ;
+  if (now - lastSendMs >= periodMs) {
+    lastSendMs = now;
+
+    const state = readGamepadStateF310(gp);
+    const ch = computeChannelsFromState(state);
+
+    // Update UI
+    renderTxChannels(ch);
+
+    // Transmit
+    const msg = { cmd: "set_inputs", data: { ch } };
+    if (!wsSendJson(msg)) {
+      stopSending("ws disconnected");
+      return;
+    }
+  }
+
+  sendRaf = requestAnimationFrame(sendLoopFrame);
+}
+
+function initIndexPageControls() {
+  if (!isIndexPage()) return;
+
+  buildTxChannelCards();
+  updateSendButtonUi();
+
+  sendToggleBtn.onclick = () => {
+    if (sendingEnabled) {
+      stopSending("button");
+    } else {
+      startSending();
+      sendLoopFrame();
+    }
+  };
+
+  // Spacebar = STOP ONLY (never re-enables)
+  window.addEventListener("keydown", (e) => {
+    // avoid firing while typing in inputs/dropdowns
+    const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+    const typing = tag === "input" || tag === "textarea" || tag === "select";
+
+    if (typing) return;
+
+    if (e.code === "Space") {
+      // STOP ONLY
+      stopSending("spacebar");
+      // prevent page scroll on spacebar
+      e.preventDefault();
+    }
+  }, { passive: false });
+}
+
+async function initIndexPage() {
+  controlMap = await loadControlMap();
+  deriveRuntimeFromControlMap();
+
+  appendLog(logEl || debugEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT})`);
+
+  initIndexPageControls();
+}
+
 function appendLog(targetEl, msg) {
   if (!targetEl) return;
   const line = document.createElement("div");
@@ -56,7 +249,7 @@ function isConfigInputsPage() {
   return !!(gpStatusEl && channelGridEl);
 }
 
-// ---------- existing websocket page behavior (index.html) ----------
+// ---------- (index.html) ----------
 function connectWebSocketIfPresent() {
   // connect if we're on index OR config page
   if (!statusEl && !isConfigInputsPage()) return;
@@ -96,6 +289,49 @@ function connectWebSocketIfPresent() {
   }
 }
 
+const txUiRefs = {}; // chIndex -> { valueEl, barFillEl }
+
+function buildTxChannelCards() {
+  if (!txChannelGridEl) return;
+
+  txChannelGridEl.innerHTML = "";
+  for (let ch = 1; ch <= CHANNEL_COUNT; ch++) {
+    const card = document.createElement("div");
+    card.className = "chanCard";
+    card.innerHTML = `
+      <div class="chanHeader">
+        <div class="chanName">C${ch}</div>
+        <div class="chanValue" id="tx_val_${ch}">0.000</div>
+      </div>
+
+      <div class="barOuter">
+        <div class="barCenter"></div>
+        <div class="barFill" id="tx_bar_${ch}" style="width: 50%;"></div>
+      </div>
+      <div style="opacity:0.75; font-size:13px; margin-top: 6px;">TX</div>
+    `;
+    txChannelGridEl.appendChild(card);
+
+    txUiRefs[ch] = {
+      valueEl: card.querySelector(`#tx_val_${ch}`),
+      barFillEl: card.querySelector(`#tx_bar_${ch}`)
+    };
+  }
+}
+
+function renderTxChannels(chArray) {
+  for (let ch = 1; ch <= CHANNEL_COUNT; ch++) {
+    const ref = txUiRefs[ch];
+    if (!ref) continue;
+
+    const v = Number(chArray[ch - 1] ?? 0);
+    ref.valueEl.textContent = v.toFixed(3);
+
+    // visualize as [-1..1] => 0..100
+    const pct = rangeToPercent(v, -1, 1);
+    ref.barFillEl.style.width = `${pct.toFixed(1)}%`;
+  }
+}
 // ---------- controlmap.json integration ----------
 let controlMap = null;
 
@@ -511,9 +747,18 @@ async function initConfigInputsPage() {
   });
 }
 
+document.querySelectorAll(".nav a").forEach(link => {
+  if (link.pathname === location.pathname) {
+    link.style.background = "#444";
+  }
+});
 // ---------- init ----------
 connectWebSocketIfPresent();
 
 if (isConfigInputsPage()) {
   initConfigInputsPage();
+}
+
+if (isIndexPage()) {
+  initIndexPage();
 }
