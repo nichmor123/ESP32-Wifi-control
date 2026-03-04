@@ -125,7 +125,7 @@ static void cmd_set_inputs(AsyncWebSocketClient* client, JsonVariantConst data, 
 
     portEXIT_CRITICAL(&g_busMux);
 
-    client->text("{\"ok\":true}");
+    //client->text("{\"ok\":true}");
 }
 
 // Save mapping into /controlmap.json

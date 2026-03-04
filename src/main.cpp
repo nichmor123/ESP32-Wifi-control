@@ -15,7 +15,7 @@ WsCommandServer ws("/ws");
 static uint32_t lastPrintMs = 0;
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(921600);
 
     // AP
     WiFiManagerSimple::APConfig ap;
@@ -56,11 +56,11 @@ void loop() {
         // Basic failsafe: if no update in last 300ms, treat as stale
         bool stale = (bus.lastRxMs == 0) || (now - bus.lastRxMs > 300);
 
-        //Serial.print("C1=");
-        //Serial.print(c1, 3);
-        //Serial.print("  lastRxMs=");
-        //Serial.print(bus.lastRxMs);
-        //Serial.print("  stale=");
-        //Serial.println(stale ? "YES" : "NO");
+        Serial.print("C1=");
+        Serial.print(c1, 3);
+        Serial.print("  lastRxMs=");
+        Serial.print(bus.lastRxMs);
+        Serial.print("  stale=");
+        Serial.println(stale ? "YES" : "NO");
     }
 }

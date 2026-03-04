@@ -28,6 +28,9 @@ function wsSendJson(obj) {
 }
 
 // ---------- shared helpers ----------
+function round3(v) {
+  return Math.round(v * 1000) / 1000;
+}
 function isIndexPage() {
   return !!(sendToggleBtn && txChannelGridEl);
 }
@@ -119,9 +122,18 @@ function computeChannelsFromState(state) {
 }
 
 let sendingEnabled = false;
-let sendRaf = 0;
-let lastSendMs = 0;
-const SEND_HZ = 50; // 50 Hz feels RC-ish
+let sendTimer = 0;
+const SEND_HZ = 25;          // start at 25Hz
+const SEND_PERIOD_MS = Math.round(1000 / SEND_HZ);
+let lastSentCh = null;
+
+function channelsChanged(a, b) {
+  if (!a || !b || a.length !== b.length) return true;
+  for (let i = 0; i < a.length; i++) {
+    if (Math.abs(a[i] - b[i]) > 0.002) return true; // threshold
+  }
+  return false;
+}
 
 function updateSendButtonUi() {
   if (!sendToggleBtn) return;
@@ -131,19 +143,58 @@ function updateSendButtonUi() {
 function stopSending(reason) {
   if (!sendingEnabled) return;
   sendingEnabled = false;
+
+  if (sendTimer) {
+    clearInterval(sendTimer);
+    sendTimer = 0;
+  }
+
   updateSendButtonUi();
   appendLog(logEl || debugEl, reason ? `STOP: ${reason}` : "STOP");
 }
 
 function startSending() {
   if (sendingEnabled) return;
+
   if (!wsIsOpen()) {
     appendLog(logEl || debugEl, "Can't start: WebSocket not connected");
     return;
   }
+
+  // prevent double-start
+  stopSending();
+
   sendingEnabled = true;
   updateSendButtonUi();
-  appendLog(logEl || debugEl, "START sending inputs");
+  appendLog(logEl || debugEl, `START sending inputs @ ${SEND_HZ} Hz`);
+
+  sendTimer = setInterval(() => {
+    if (!sendingEnabled) return;
+    if (!wsIsOpen()) {
+      stopSending("ws disconnected");
+      return;
+    }
+
+    const gp = getFirstGamepad();
+    if (!gp) {
+      stopSending("no controller");
+      return;
+    }
+
+    const state = readGamepadStateF310(gp);
+    const ch = computeChannelsFromState(state).map(round3);
+
+    // update UI locally
+    renderTxChannels(ch);
+    if (!channelsChanged(ch, lastSentCh)) return;
+      lastSentCh = ch;
+      wsSendJson({ cmd: "set_inputs", data: { ch } });
+    // send
+    const msg = { cmd: "set_inputs", data: { ch } };
+    if (!wsSendJson(msg)) {
+      stopSending("ws send failed");
+    }
+  }, SEND_PERIOD_MS);
 }
 
 function sendLoopFrame() {
