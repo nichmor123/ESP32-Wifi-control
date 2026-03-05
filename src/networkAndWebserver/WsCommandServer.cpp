@@ -41,6 +41,7 @@ void WsCommandServer::attachTo(AsyncWebServer& server) {
 bool WsCommandServer::on(const char* cmd, Handler handler) {
     if (!cmd || !handler) return false;
 
+    // Replace if exists
     for (size_t i = 0; i < _count; i++) {
         if (strcmp(_entries[i].cmd, cmd) == 0) {
             _entries[i].handler = handler;
@@ -111,6 +112,18 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
             auto* info = reinterpret_cast<AwsFrameInfo*>(arg);
             if (!info || !client) return;
 
+            // ---- NEW: Binary control packets ----
+            if (info->opcode == WS_BINARY) {
+                // Control packets are small; require one complete frame
+                if (!info->final || info->index != 0) {
+                    client->text("{\"err\":\"bin_fragment_not_supported\"}");
+                    return;
+                }
+                if (_binHandler) _binHandler(client, data, len);
+                return;
+            }
+
+            // ---- Text JSON commands ----
             if (info->opcode != WS_TEXT) return;
 
             // info->len is TOTAL message length (bytes) for this frame sequence
@@ -147,8 +160,6 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
 
             // Done?
             if (info->final && g_rx.filled >= g_rx.expectedLen) {
-                // Null-terminate (String already is, but keep it explicit)
-                // Parse full message now
                 this->handleTextMessage(client, (const uint8_t*)g_rx.buf.c_str(), g_rx.buf.length());
                 g_rx.clear();
             }
@@ -173,8 +184,7 @@ void WsCommandServer::handleTextMessage(AsyncWebSocketClient* client,
     if (len > kMaxPrint) Serial.print("...<truncated>");
     Serial.println();
 
-    // Now we can parse safely because we have the full message
-    // 8KB is usually fine for the wrapper + string field, but bump if needed.
+    // Parse full message now
     StaticJsonDocument<12288> doc;
 
     DeserializationError err = deserializeJson(doc, (const char*)data, len);

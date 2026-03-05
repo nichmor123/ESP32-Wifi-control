@@ -2,44 +2,43 @@
 
 #include <Arduino.h>
 #include <ESPAsyncWebServer.h>
-#include <ArduinoJson.h>
+#include <stddef.h>
+#include <stdint.h>
 
 class WsCommandServer {
 public:
-    using Handler = void (*)(AsyncWebSocketClient* client,
-                             JsonVariantConst data,
-                             JsonDocument& rawDoc);
+    using Handler = void (*)(AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc);
 
-    explicit WsCommandServer(const char* wsPath = "/ws");
+    // NEW: binary handler for high-rate control packets
+    using BinaryHandler = void (*)(AsyncWebSocketClient* client, const uint8_t* data, size_t len);
 
-    // Non-copyable (important)
-    WsCommandServer(const WsCommandServer&) = delete;
-    WsCommandServer& operator=(const WsCommandServer&) = delete;
+    explicit WsCommandServer(const char* wsPath);
 
-    // Attach to an existing AsyncWebServer (from your StaticFileServer)
     void attachTo(AsyncWebServer& server);
-
-    // Register a command handler: {"cmd":"name","data":...}
-    bool on(const char* cmd, Handler handler);
-
-    // Start handling events (call once after handlers are registered)
     void begin();
 
-    // Convenience send
+    bool on(const char* cmd, Handler handler);
+
+    // NEW
+    void onBinary(BinaryHandler handler) { _binHandler = handler; }
+
     void sendText(AsyncWebSocketClient* client, const char* text);
     void broadcastText(const char* text);
 
 private:
+    static constexpr size_t MAX_COMMANDS = 24;
+
     struct Entry {
         const char* cmd;
         Handler handler;
     };
 
-    static constexpr size_t MAX_COMMANDS = 32;
-
     AsyncWebSocket _ws;
     Entry _entries[MAX_COMMANDS]{};
     size_t _count = 0;
+
+    // NEW
+    BinaryHandler _binHandler = nullptr;
 
     Handler findHandler(const char* cmd) const;
 
@@ -50,7 +49,5 @@ private:
                      uint8_t* data,
                      size_t len);
 
-    void handleTextMessage(AsyncWebSocketClient* client,
-                           const uint8_t* data,
-                           size_t len);
+    void handleTextMessage(AsyncWebSocketClient* client, const uint8_t* data, size_t len);
 };

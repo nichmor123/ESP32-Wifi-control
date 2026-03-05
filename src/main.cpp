@@ -12,7 +12,13 @@ StaticFileServer web(httpCfg);
 
 WsCommandServer ws("/ws");
 
-static uint32_t lastPrintMs = 0;
+// --- timing ---
+static constexpr uint32_t CONTROL_DT_MS  = 10;   // 100 Hz control tick
+static constexpr uint32_t RX_TIMEOUT_MS  = 300;  // failsafe if no RX for 300ms
+static constexpr uint32_t PRINT_DT_MS    = 100;  // 10 Hz prints
+
+static uint32_t lastControlMs = 0;
+static uint32_t lastPrintMs   = 0;
 
 void setup() {
     Serial.begin(921600);
@@ -44,23 +50,44 @@ void setup() {
 void loop() {
     const uint32_t now = millis();
 
-    // Print at 10 Hz
-    if (now - lastPrintMs >= 100) {
-        lastPrintMs = now;
+    // ----- fixed-rate control tick -----
+    if ((uint32_t)(now - lastControlMs) >= CONTROL_DT_MS) {
+        lastControlMs = now;
 
-        ChannelBus bus = GetChannelBusSnapshot();
+        // Copy ONCE per tick (one lock/unlock)
+        const ChannelBus bus = GetChannelBusSnapshot();
 
-        // Example: print C1 (channel index 0)
-        float c1 = bus.ch[0];
+        const bool stale = (bus.lastRxMs == 0) || ((uint32_t)(now - bus.lastRxMs) > RX_TIMEOUT_MS);
 
-        // Basic failsafe: if no update in last 300ms, treat as stale
-        bool stale = (bus.lastRxMs == 0) || (now - bus.lastRxMs > 300);
+        if (stale) {
+            // FAILSAFE: stop outputs here (when you add outputs)
+            // Example:
+            // setDrive(0,0);
+        } else {
+            // NORMAL CONTROL:
+            const float c1 = bus.ch[0]; // C1
 
-        Serial.print("C1=");
-        Serial.print(c1, 3);
-        Serial.print("  lastRxMs=");
-        Serial.print(bus.lastRxMs);
-        Serial.print("  stale=");
-        Serial.println(stale ? "YES" : "NO");
+            // Example placeholder for future output logic:
+            // driveFromChannel(c1);
+            (void)c1;
+        }
+
+        // ----- debug print decoupled from control tick -----
+        if ((uint32_t)(now - lastPrintMs) >= PRINT_DT_MS) {
+            lastPrintMs = now;
+
+            // Use the SAME snapshot we already copied this tick.
+            // (No extra GetChannelBusSnapshot() call.)
+            const float c1 = bus.ch[0];
+
+            Serial.print("C1=");
+            Serial.print(c1, 3);
+            Serial.print("  lastRxMs=");
+            Serial.print(bus.lastRxMs);
+            Serial.print("  stale=");
+            Serial.println(stale ? "YES" : "NO");
+        }
     }
+
+    // Nothing else needed; WiFi/Async server runs in background tasks
 }
