@@ -4,6 +4,14 @@
 #include "networkAndWebserver/StaticFileServer.h"
 #include "networkAndWebserver/WsCommandServer.h"
 #include "networkAndWebserver/ProjectWsCommands.h"
+#include "motorstuff.h"
+
+#define L_FWD 26
+#define L_REV 25
+#define R_FWD 33
+#define R_REV 32
+#define LI_FWD 22
+#define LI_REV 23
 
 WiFiManagerSimple wifi;
 
@@ -43,6 +51,7 @@ void setup() {
         delay(2000);
         ESP.restart();
     }
+    setUpPinModes(L_FWD, L_REV, R_FWD, R_REV, LI_FWD, LI_REV);
 
     Serial.println("Setup complete");
 }
@@ -59,34 +68,9 @@ void loop() {
 
         const bool stale = (bus.lastRxMs == 0) || ((uint32_t)(now - bus.lastRxMs) > RX_TIMEOUT_MS);
 
-        if (stale) {
-            // FAILSAFE: stop outputs here (when you add outputs)
-            // Example:
-            // setDrive(0,0);
-        } else {
-            // NORMAL CONTROL:
-            const float c1 = bus.ch[0]; // C1
-
-            // Example placeholder for future output logic:
-            // driveFromChannel(c1);
-            (void)c1;
-        }
-
-        // ----- debug print decoupled from control tick -----
-        if ((uint32_t)(now - lastPrintMs) >= PRINT_DT_MS) {
-            lastPrintMs = now;
-
-            // Use the SAME snapshot we already copied this tick.
-            // (No extra GetChannelBusSnapshot() call.)
-            const float c1 = bus.ch[0];
-
-            Serial.print("C1=");
-            Serial.print(c1, 3);
-            Serial.print("  lastRxMs=");
-            Serial.print(bus.lastRxMs);
-            Serial.print("  stale=");
-            Serial.println(stale ? "YES" : "NO");
-        }
+        driveMotor(0, 1, bus.ch[0]*100);
+        driveMotor(2, 3, bus.ch[1]*100);
+        driveMotor(4, 5, bus.ch[2]*100 - bus.ch[3]*100);
     }
 
     // Nothing else needed; WiFi/Async server runs in background tasks
