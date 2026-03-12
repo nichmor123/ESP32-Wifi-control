@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ESP32Servo.h>
 
 #include "networkAndWebserver/WifiAPConfig.h"
 #include "networkAndWebserver/StaticFileServer.h"
@@ -6,12 +7,9 @@
 #include "networkAndWebserver/ProjectWsCommands.h"
 #include "motorstuff.h"
 
-#define L_FWD 26
-#define L_REV 25
-#define R_FWD 33
-#define R_REV 32
-#define LI_FWD 22
-#define LI_REV 23
+#define L_ESC 26
+#define R_ESC 25
+
 
 WiFiManagerSimple wifi;
 
@@ -33,8 +31,8 @@ void setup() {
 
     // AP
     WiFiManagerSimple::APConfig ap;
-    ap.ssid = "ESP32Controller";
-    ap.password = "12345678";
+    ap.ssid = "Toasty";
+    ap.password = "auvsiauvsi";
     wifi.beginAP(ap);
 
     // HTTP pages
@@ -51,7 +49,11 @@ void setup() {
         delay(2000);
         ESP.restart();
     }
-    setUpPinModes(L_FWD, L_REV, R_FWD, R_REV, LI_FWD, LI_REV);
+    
+    // ⚡ Attach ESC pins and send neutral signal
+    setUpPinModes(L_ESC, 0, R_ESC, 0, 0, 0);
+
+    delay(2000); // allow ESC to arm
 
     Serial.println("Setup complete");
 }
@@ -70,7 +72,7 @@ void loop() {
 
         driveMotor(0, 1, bus.ch[0]*100);
         driveMotor(2, 3, bus.ch[1]*100);
-        driveMotor(4, 5, bus.ch[2]*100 - bus.ch[3]*100);
+        
     }
 
     // Nothing else needed; WiFi/Async server runs in background tasks
