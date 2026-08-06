@@ -185,7 +185,7 @@ void WsCommandServer::handleTextMessage(AsyncWebSocketClient* client,
     Serial.println();
 
     // Parse full message now
-    StaticJsonDocument<12288> doc;
+    JsonDocument doc;
 
     DeserializationError err = deserializeJson(doc, (const char*)data, len);
     if (err) {

@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 
-<body>
+<body id="page-config-inputs">
 
 <div class="layout">
 
@@ -20,6 +20,8 @@
     <a href="/mobile">Mobile Control</a>
     <a href="/config/inputs">Input Mapping</a>
     <a href="/config/outputs">Output Mapping</a>
+    <a href="/battery">Battery</a>
+    <a href="/troubleshooting">Troubleshooting</a>
 
   </aside>
 
@@ -40,10 +42,32 @@
         <button id="stopBtn">Stop</button>
       </div>
 
-      <div class="grid" id="channelGrid"></div>
+      <!-- Tabs -->
+      <div class="tab-container">
+        <div class="tab-bar">
+          <button class="tab-button active" data-tab="gamepad-tab">Gamepad</button>
+          <button class="tab-button" data-tab="mobile-tab">Mobile</button>
+        </div>
+        <div class="tab-content">
+          <div id="gamepad-tab" class="tab-pane active">
+            <div class="grid" id="channelGrid"></div>
+            <div class="sectionTitle">Buttons</div>
+            <div class="grid" id="buttonGrid"></div>
+          </div>
+          <div id="mobile-tab" class="tab-pane">
+            <div class="grid" id="mobileChannelGrid"></div>
+            <div class="sectionTitle">Buttons</div>
+            <div class="grid" id="mobileButtonGrid"></div>
+          </div>
+        </div>
+      </div>
 
-      <div class="sectionTitle">Buttons</div>
-      <div class="grid" id="buttonGrid"></div>
+      <div class="sectionTitle">Mixes</div>
+      <p class="subtitle" style="text-align: left; margin-top: 4px;">
+        Create virtual inputs by combining sources. Mixes appear as new axes in the tabs above.
+      </p>
+      <div id="mixesGrid" class="mixes-grid"></div>
+      <div style="text-align: center; margin-top: 14px;"><button id="addMixBtn">+ Add Mix</button></div>
 
       <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
         <button id="saveBtn">Save Mapping</button>
@@ -69,7 +93,6 @@
 <script src="/websocket.js"></script>
 <script src="/controlMap.js"></script>
 <script src="/gamepad.js"></script>
-<script src="/page-index.js"></script>
 <script src="/page-config-inputs.js"></script>
 <script src="/app.js"></script>
 

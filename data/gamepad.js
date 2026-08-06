@@ -33,8 +33,27 @@ function applyXform(raw, kind, xform) {
 }
 
 function computeChannelsFromState(state) {
-  const out = new Array(CHANNEL_COUNT).fill(0);
+  // Create a map of all available input values, starting with raw sources
+  const allInputValues = { ...state.analog };
+  for (const key in state.digital) {
+    allInputValues[key] = state.digital[key] ? 1.0 : 0.0;
+  }
 
+  // Calculate mix values
+  const mixes = Array.isArray(controlMap?.inputs?.mixes) ? controlMap.inputs.mixes : [];
+  mixes.forEach(mix => {
+    let mixValue = 0;
+    (mix.positive || []).forEach(srcId => {
+      mixValue += allInputValues[srcId] || 0;
+    });
+    (mix.negative || []).forEach(srcId => {
+      mixValue -= allInputValues[srcId] || 0;
+    });
+    // Clamp the result to the standard -1 to 1 range
+    allInputValues[mix.id] = clamp(mixValue, -1, 1);
+  });
+
+  const out = new Array(CHANNEL_COUNT).fill(0);
   const mappings = Array.isArray(controlMap?.inputs?.map_to_channels) ? controlMap.inputs.map_to_channels : [];
 
   for (const m of mappings) {
@@ -42,14 +61,14 @@ function computeChannelsFromState(state) {
     const chIdx = m.ch - 1;
     if (chIdx < 0 || chIdx >= CHANNEL_COUNT) continue;
 
-    const kind = getSourceKind(m.source);
+    // A source can be a raw input or a mix
+    const sourceId = m.source;
+    const rawValue = allInputValues[sourceId] || 0;
+
+    const kind = getSourceKind(sourceId);
     if (!kind) continue;
 
-    let raw;
-    if (kind === "axis") raw = state.analog[m.source] ?? 0;
-    else raw = state.digital[m.source] ?? false;
-
-    const v = applyXform(raw, kind, m.xform);
+    const v = applyXform(rawValue, kind, m.xform);
     out[chIdx] = v;
   }
 

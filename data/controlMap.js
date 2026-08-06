@@ -39,7 +39,15 @@ function defaultControlMapFallback() {
         { id: "ddn", kind: "button", label: "D-pad Down" },
         { id: "dlt", kind: "button", label: "D-pad Left" },
         { id: "drt", kind: "button", label: "D-pad Right" },
+        // Mobile Sources
+        { id: "m_lsx", "kind": "axis",   "label": "Mobile Left X" },
+        { id: "m_lsy", "kind": "axis",   "label": "Mobile Left Y" },
+        { id: "m_rsx", "kind": "axis",   "label": "Mobile Right X" },
+        { id: "m_rsy", "kind": "axis",   "label": "Mobile Right Y" },
+        { id: "m_btn_a", "kind": "button", "label": "Mobile Button A" },
+        { id: "m_btn_b", "kind": "button", "label": "Mobile Button B" }
       ],
+      "mixes": [],
       map_to_channels: [
         { source: "rt", ch: 1, xform: { type: "linear", scale: 1.0, offset: 0.0 } },
         { source: "lt", ch: 2, xform: { type: "linear", scale: 1.0, offset: 0.0 } },
@@ -60,7 +68,7 @@ function defaultControlMapFallback() {
         { source: "dup", ch: 17, xform: { type: "button", on: 1.0, off: 0.0 } },
         { source: "ddn", ch: 18, xform: { type: "button", on: 1.0, off: 0.0 } },
         { source: "dlt", ch: 19, xform: { type: "button", on: 1.0, off: 0.0 } },
-        { source: "drt", ch: 20, xform: { type: "button", on: 1.0, off: 0.0 } },
+        { source: "drt", ch: 20, xform: { "type": "button", on: 1.0, "off": 0.0 } }
       ],
     },
   };
@@ -83,7 +91,21 @@ async function loadControlMap() {
 function deriveRuntimeFromControlMap() {
   CHANNEL_COUNT = controlMap?.channels?.count ?? 8;
 
-  SOURCES = Array.isArray(controlMap?.inputs?.sources) ? controlMap.inputs.sources : [];
+  // Start with a fresh shallow copy of the raw sources
+  const rawSources = Array.isArray(controlMap?.inputs?.sources) ? [...controlMap.inputs.sources] : [];
+
+  // Add mixes to the list of available sources for mapping
+  const mixes = Array.isArray(controlMap?.inputs?.mixes) ? controlMap.inputs.mixes : [];
+  const mixSources = mixes.map(mix => ({
+    id: mix.id,
+    kind: 'axis', // A mix is always treated as an axis
+    label: mix.label || mix.id,
+  }));
+
+  // Combine them into the final SOURCES global. This is a new array.
+  SOURCES = [...rawSources, ...mixSources];
+
+  // The rest of the function can read from the newly built SOURCES
   AXES = SOURCES.filter((s) => s && s.kind === "axis");
   BUTTONS = SOURCES.filter((s) => s && s.kind === "button");
 

@@ -7,12 +7,16 @@
     <link rel="stylesheet" href="/style.css">
 </head>
 
-<body class="mobile-body">
+<body id="page-mobile" class="mobile-body">
 
 <!-- Status indicator -->
 <div id="mobile-status-container">
     <div id="status-dot"></div>
     <div id="status">Connecting...</div>
+    <div id="battery-indicator" class="battery-indicator" style="display: none;">
+        <div class="battery-bar-outer"><div class="battery-bar-fill green" style="width: 100%;"></div></div>
+        <div class="battery-text">-- V</div>
+    </div>
 </div>
 
 <!-- Touch controls overlay -->
@@ -29,6 +33,8 @@
 <!-- Project Scripts -->
 <script src="/utils.js"></script>
 <script src="/websocket.js"></script>
+<script src="/controlMap.js"></script>
+<script src="/gamepad.js"></script>
 <script src="/page-mobile.js"></script>
 <script src="/app.js"></script>
 

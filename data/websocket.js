@@ -41,7 +41,7 @@ function wsSendChannelsBinary(chFloatArray) {
 
 // ---------- websocket connection ----------
 function shouldUseWebSocketOnThisPage() {
-  return !!(pingBtn || sendToggleBtn || isConfigInputsPage() || saveBtn || isMobilePage());
+  return !!(pingBtn || sendToggleBtn || isConfigInputsPage() || saveBtn || isMobilePage() || isOutputConfigPage() || isBatteryPage() || isTroubleshootingPage());
 }
 
 function connectWebSocket() {
@@ -70,18 +70,44 @@ function connectWebSocket() {
   };
 
   ws.onmessage = (event) => {
-    appendLog(logEl || debugEl, "RX: " + event.data);
-  };
+    const logTarget = logEl || debugEl;
+    let msg;
 
-  if (pingBtn) {
-    pingBtn.onclick = () => {
-      if (!wsIsOpen()) {
-        appendLog(logEl || debugEl, "WebSocket not connected");
+    try {
+        msg = JSON.parse(event.data);
+    } catch(e) {
+        // Not a JSON message, just log it
+        if (logTarget) appendLog(logTarget, "RX: " + event.data);
         return;
-      }
-      const payload = { cmd: "ping" };
-      wsSendJson(payload);
-      appendLog(logEl || debugEl, "TX: " + JSON.stringify(payload));
-    };
+    }
+
+    // Now we have a parsed message `msg`
+    if (msg.cmd === 'battery_update') {
+        const { voltage, percentage } = msg.data;
+        document.querySelectorAll('#battery-indicator').forEach(indicator => {
+            if (indicator.style.display === 'none') {
+                indicator.style.display = indicator.closest('.mobile-body') ? 'flex' : 'block';
+            }
+            const textEl = indicator.querySelector('.battery-text');
+            const barEl = indicator.querySelector('.battery-bar-fill');
+            
+            if (textEl.textContent.includes('%')) { // Main page has percentage
+                textEl.textContent = `${voltage.toFixed(2)}V (${percentage.toFixed(0)}%)`;
+            } else { // Mobile page does not
+                textEl.textContent = `${voltage.toFixed(2)}V`;
+            }
+            if (barEl) barEl.style.width = `${percentage}%`;
+
+            if (barEl) barEl.classList.remove('green', 'yellow', 'red');
+            if (percentage > 50) barEl?.classList.add('green');
+            else if (percentage > 20) barEl?.classList.add('yellow');
+            else barEl?.classList.add('red');
+        });
+    } else {
+        // Log all other commands
+        if (logTarget) {
+            appendLog(logTarget, "RX: " + event.data);
+        }
+    }
   }
 }

@@ -2,7 +2,6 @@
 // Optional elements (exist on index.html)
 const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
-const pingBtn = document.getElementById("pingBtn");
 const sendToggleBtn = document.getElementById("sendToggleBtn");
 const txChannelGridEl = document.getElementById("txChannelGrid");
 
@@ -18,6 +17,18 @@ const saveBtn = document.getElementById("saveBtn");
 // Mobile page elements
 const joystickLeftEl = document.getElementById("joystick-left-container");
 const joystickRightEl = document.getElementById("joystick-right-container");
+
+// Output Config page elements
+const outputGridEl = document.getElementById("outputGrid");
+const addOutputBtn = document.getElementById("addOutputBtn");
+
+// Battery Config page elements
+const chemSelect = document.getElementById("chem-select");
+const saveBatteryBtn = document.getElementById("saveBatteryBtn");
+
+// Troubleshooting page elements
+const pingBtn = document.getElementById("pingBtn"); // Moved here
+const systemInfoEl = document.getElementById("systemInfo");
 const statusDotEl = document.getElementById("status-dot");
 
 // ---------- shared helpers ----------
@@ -26,16 +37,40 @@ function round3(v) {
 }
 
 function isIndexPage() {
-  return !!(sendToggleBtn && txChannelGridEl);
+  return document.body.id === 'page-index';
 }
 
 function isConfigInputsPage() {
-  // reliable because these elements only exist on that page
-  return !!(gpStatusEl && channelGridEl);
+  return document.body.id === 'page-config-inputs';
 }
 
 function isMobilePage() {
-  return !!(joystickLeftEl && joystickRightEl);
+  return document.body.id === 'page-mobile';
+}
+
+function isOutputConfigPage() {
+  return document.body.id === 'page-config-outputs';
+}
+
+function isBatteryPage() {
+    return document.body.id === 'page-battery';
+}
+
+function isTroubleshootingPage() {
+  return document.body.id === 'page-troubleshooting';
+}
+
+function buildChannelOptions(selectedChannel, includeNone) {
+  const opts = [];
+  if (includeNone) {
+    const sel = selectedChannel == null ? "selected" : "";
+    opts.push(`<option value="" ${sel}>None</option>`);
+  }
+  for (let ch = 1; ch <= CHANNEL_COUNT; ch++) {
+    const sel = ch === selectedChannel ? "selected" : "";
+    opts.push(`<option value="${ch}" ${sel}>C${ch}</option>`);
+  }
+  return opts.join("");
 }
 
 function appendLog(targetEl, msg) {
@@ -77,5 +112,5 @@ function rangeToPercent(v, min, max) {
 
 // ---------- navigation highlight ----------
 document.querySelectorAll(".nav a").forEach((link) => {
-  if (link.pathname === location.pathname) link.style.background = "#444";
+  if (link.pathname === location.pathname) link.classList.add("active");
 });

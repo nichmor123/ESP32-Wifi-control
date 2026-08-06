@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "enabled": false,
+  "pin": 34,
+  "chemistry": "lipo",
+  "cells": 3,
+  "r1": 33000,
+  "r2": 10000,
+  "vRef": 3.3,
+  "adcResolution": 4095
+}

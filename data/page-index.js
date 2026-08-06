@@ -48,13 +48,6 @@ function sendNeutralOnce() {
   wsSendChannelsBinary(ch);
 }
 
-// ---------- send loop (index.html) ----------
-let sendingEnabled = false;
-let sendTimer = 0;
-
-const SEND_HZ = 25;
-const SEND_PERIOD_MS = Math.round(1000 / SEND_HZ);
-
 let lastSentCh = null;
 
 function channelsChanged(a, b) {
@@ -69,6 +62,13 @@ function updateSendButtonUi() {
   if (!sendToggleBtn) return;
   sendToggleBtn.textContent = sendingEnabled ? "Stop Sending" : "Start Sending";
 }
+
+// ---------- send loop (index.html) ----------
+let sendingEnabled = false;
+let sendTimer = 0;
+
+const SEND_HZ = 25;
+const SEND_PERIOD_MS = Math.round(1000 / SEND_HZ);
 
 function stopSending(reason) {
   if (!sendingEnabled) return;

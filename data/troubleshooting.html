@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Troubleshooting</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body id="page-troubleshooting">
+
+<div class="layout">
+
+    <!-- Left Navigation -->
+    <aside class="nav">
+        <div class="navTitle">Controller</div>
+        <a href="/">Main</a>
+        <a href="/mobile">Mobile Control</a>
+        <a href="/config/inputs">Input Mapping</a>
+        <a href="/config/outputs">Output Mapping</a>
+        <a href="/battery">Battery</a>
+        <a href="/troubleshooting">Troubleshooting</a>
+    </aside>
+
+    <!-- Main Page Content -->
+    <main class="page">
+        <div class="card">
+            <h1>Troubleshooting & Diagnostics</h1>
+            <p class="subtitle">Tools to monitor and manage the ESP32.</p>
+
+            <div class="status" id="status">Disconnected</div>
+
+            <div class="sectionTitle">Connection Test</div>
+            <button id="pingBtn">Send Ping</button>
+
+            <div class="sectionTitle" style="margin-top: 20px;">System Info</div>
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+                <button id="getHeapBtn">Get Free Heap</button>
+            </div>
+            <div id="systemInfo" class="log" style="max-height: 100px;"></div>
+
+            <div class="sectionTitle" style="margin-top: 20px;">Actions</div>
+            <button id="restartEspBtn" style="background: #ff4444; color: #fff;">Restart ESP32</button>
+
+            <div class="sectionTitle" style="margin-top: 20px;">Activity Log</div>
+            <div class="log" id="log"></div>
+        </div>
+    </main>
+
+</div>
+
+<script src="/utils.js"></script>
+<script src="/websocket.js"></script>
+<script src="/page-troubleshooting.js"></script>
+<script src="/app.js"></script>
+
+</body>
+</html>

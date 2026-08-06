@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "outputs": [
+    {
+      "id": "output_1719859200000",
+      "type": "esc",
+      "sourceChannel": 4,
+      "inputRange": [-1, 1],
+      "outputRange": [-100, 100],
+      "pins": { "pwm": 25 }
+    },
+    {
+      "id": "output_1719859200001",
+      "type": "servo",
+      "sourceChannel": 7,
+      "inputRange": [0, 1],
+      "outputRange": [0, 180],
+      "pins": { "pwm": 26 }
+    }
+  ]
+}

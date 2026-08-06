@@ -8,8 +8,16 @@ async function main() {
     appendLog(debugEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
     initConfigInputsPage();
   } else if (isMobilePage()) {
-    // Mobile page is self-contained and does not need controlMap
+    await loadControlMap();
+    // No log element on mobile page, so no log output here
     initMobilePage();
+  } else if (isOutputConfigPage()) {
+    await loadControlMap(); // Needed for channel count
+    initOutputConfigPage();
+  } else if (isBatteryPage()) {
+    initBatteryPage();
+  } else if (isTroubleshootingPage()) {
+    initTroubleshootingPage();
   } else if (isIndexPage()) {
     await loadControlMap();
     appendLog(logEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);

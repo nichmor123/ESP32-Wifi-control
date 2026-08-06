@@ -5,6 +5,8 @@
 #include "networkAndWebserver/StaticFileServer.h"
 #include "networkAndWebserver/WsCommandServer.h"
 #include "networkAndWebserver/ProjectWsCommands.h"
+#include "outputs/OutputManager.h"
+#include "sensors/BatteryMonitor.h"
 
 WiFiManagerSimple wifi;
 
@@ -12,6 +14,9 @@ StaticFileServer::Config httpCfg;
 StaticFileServer web(httpCfg);
 
 WsCommandServer ws("/ws");
+
+OutputManager outputManager;
+BatteryMonitor batteryMonitor;
 
 // --- timing ---
 static constexpr uint32_t CONTROL_DT_MS  = 10;   // 100 Hz control tick
@@ -34,6 +39,8 @@ void setup() {
     web.addPageRoute("/", "/index.html");
     web.addPageRoute("/mobile", "/mobile.html");
     web.addPageRoute("/config/inputs",  "/config_inputs.html");
+    web.addPageRoute("/battery", "/battery.html");
+    web.addPageRoute("/troubleshooting", "/troubleshooting.html");
     web.addPageRoute("/config/outputs", "/config_outputs.html");
 
     //server other files
@@ -49,6 +56,9 @@ void setup() {
         delay(2000);
         ESP.restart();
     }
+
+    outputManager.begin();
+    batteryMonitor.begin();
 
     Serial.println("Setup complete");
 }
@@ -66,16 +76,11 @@ void loop() {
         const bool stale = (bus.lastRxMs == 0) || ((uint32_t)(now - bus.lastRxMs) > RX_TIMEOUT_MS);
 
         if (stale) {
-            // FAILSAFE: stop outputs here (when you add outputs)
-            // Example:
-            // setDrive(0,0);
+            // FAILSAFE: set outputs to a safe state
+            outputManager.halt();
         } else {
-            // NORMAL CONTROL:
-            const float c1 = bus.ch[0]; // C1
-
-            // Example placeholder for future output logic:
-            // driveFromChannel(c1);
-            (void)c1;
+            // NORMAL CONTROL: update outputs from channel data
+            outputManager.update(bus);
         }
     }
 
@@ -83,6 +88,10 @@ void loop() {
     if ((uint32_t)(now - lastPrintMs) >= PRINT_DT_MS) {
         lastPrintMs = now;
 
+        // Update sensors at a slower rate
+        batteryMonitor.update();
+
+#if 0 // Disable debug prints for release
         const ChannelBus bus = GetChannelBusSnapshot();
         const bool stale = (bus.lastRxMs == 0) || ((uint32_t)(now - bus.lastRxMs) > RX_TIMEOUT_MS);
         const float c1 = bus.ch[0];
@@ -93,6 +102,19 @@ void loop() {
         Serial.print(bus.lastRxMs);
         Serial.print("  stale=");
         Serial.println(stale ? "YES" : "NO");
+#endif
+
+        // Send battery status only if it's enabled
+        if (batteryMonitor.isEnabled()) {
+            JsonDocument doc;
+            doc["cmd"] = "battery_update";
+            JsonObject data = doc["data"].to<JsonObject>();
+            data["voltage"] = batteryMonitor.getVoltage();
+            data["percentage"] = batteryMonitor.getPercentage();
+            String output;
+            serializeJson(doc, output);
+            ws.broadcastText(output.c_str());
+        }
     }
 
     // Nothing else needed; WiFi/Async server runs in background tasks

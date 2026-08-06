@@ -42,7 +42,13 @@
       { "id": "dup",   "kind": "button", "label": "D-pad Up" },
       { "id": "ddn",   "kind": "button", "label": "D-pad Down" },
       { "id": "dlt",   "kind": "button", "label": "D-pad Left" },
-      { "id": "drt",   "kind": "button", "label": "D-pad Right" }
+      { "id": "drt",   "kind": "button", "label": "D-pad Right" },
+      { "id": "m_lsx", "kind": "axis",   "label": "Mobile Left X" },
+      { "id": "m_lsy", "kind": "axis",   "label": "Mobile Left Y" },
+      { "id": "m_rsx", "kind": "axis",   "label": "Mobile Right X" },
+      { "id": "m_rsy", "kind": "axis",   "label": "Mobile Right Y" },
+      { "id": "m_btn_a", "kind": "button", "label": "Mobile Button A" },
+      { "id": "m_btn_b", "kind": "button", "label": "Mobile Button B" }
     ],
 
     "map_to_channels": [

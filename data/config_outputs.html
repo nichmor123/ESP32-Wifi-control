@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 
-<body>
+<body id="page-config-outputs">
 
 <div class="layout">
 
@@ -20,6 +20,8 @@
     <a href="/mobile">Mobile Control</a>
     <a href="/config/inputs">Input Mapping</a>
     <a href="/config/outputs">Output Mapping</a>
+    <a href="/battery">Battery</a>
+    <a href="/troubleshooting">Troubleshooting</a>
 
   </aside>
 
@@ -30,37 +32,31 @@
 
       <h1>Config: Outputs</h1>
       <p class="subtitle">Configure how channels map to hardware outputs</p>
-
-      <div class="sectionTitle">Status</div>
-
-      <div class="pill">
-        <span class="pillDot"></span>
-        <span class="pillText">Feature in progress</span>
+      
+      <div class="status" id="status">Disconnected</div>
+      
+      <div class="grid" id="outputGrid">
+        <!-- Output cards will be generated here -->
       </div>
 
-      <div class="sectionTitle" style="margin-top:20px;">Planned Features</div>
-
-      <div class="log" style="max-height:none;">
-        <ul style="margin:0 0 0 18px;">
-          <li>Channel → motor output mapping</li>
-          <li>PWM / servo / digital output selection</li>
-          <li>Output inversion</li>
-          <li>Output scaling</li>
-          <li>Failsafe behavior</li>
-          <li>Output testing tools</li>
-        </ul>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+        <button id="addOutputBtn">+ Add Output</button>
+        <button id="saveOutputsBtn">Save Outputs</button>
       </div>
 
-      <div style="margin-top:20px; opacity:0.8; font-size:13px; text-align:left;">
-        This page will allow configuring how input channels drive physical
-        outputs on the ESP32 (motor drivers, servos, GPIO, etc).
-      </div>
+      <div class="log" id="debug"></div>
 
     </div>
 
   </main>
 
 </div>
+
+<script src="/utils.js"></script>
+<script src="/websocket.js"></script>
+<script src="/controlMap.js"></script> <!-- Needed for channel count -->
+<script src="/page-config-outputs.js"></script>
+<script src="/app.js"></script>
 
 </body>
 </html>
