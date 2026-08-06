@@ -90,20 +90,6 @@ void loop() {
 
         // Update sensors at a slower rate
         batteryMonitor.update();
-
-#if 0 // Disable debug prints for release
-        const ChannelBus bus = GetChannelBusSnapshot();
-        const bool stale = (bus.lastRxMs == 0) || ((uint32_t)(now - bus.lastRxMs) > RX_TIMEOUT_MS);
-        const float c1 = bus.ch[0];
-
-        Serial.print("C1=");
-        Serial.print(c1, 3);
-        Serial.print("  lastRxMs=");
-        Serial.print(bus.lastRxMs);
-        Serial.print("  stale=");
-        Serial.println(stale ? "YES" : "NO");
-#endif
-
         // Send battery status only if it's enabled
         if (batteryMonitor.isEnabled()) {
             JsonDocument doc;
