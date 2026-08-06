@@ -148,10 +148,3 @@ This project relies on the following PlatformIO libraries, which are managed aut
 
 Happy building!
 
-```
-
-This file is now ready to be committed to your project's root directory. It provides a solid foundation of documentation that will be invaluable as your project grows.
-
-<!--
-[PROMPT_SUGGESTION]How can I add a new page to the web server, like an "About" page?[/PROMPT_SUGGESTION]
-[PROMPT_SUGGESTION]Explain how the `controlMap.json` file is used by the JavaScript to process gamepad inputs.[/PROMPT_SUGGESTION]
