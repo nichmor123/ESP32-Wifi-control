@@ -7,9 +7,11 @@ This project turns an ESP32 into a high-performance, standalone WiFi controller 
 1.  **Clone the repository** and open it in VS Code with the PlatformIO extension.
 2.  **Connect your ESP32** to your computer via USB.
 3.  **Upload Firmware:** Use the PlatformIO "Upload" task (`Ctrl+Alt+U`).
+    > **Note:** This compiles and flashes the C++ code to the ESP32.
 4.  **Upload Filesystem:** Use the PlatformIO "Upload Filesystem Image" task.
-5.  **Connect to WiFi:** Connect to the `ESP32Controller` WiFi network (password: `12345678`).
-6.  **Open a browser** and go to `http://192.168.4.1`.
+    > **Note:** This bundles the contents of the `data/` directory into a LittleFS image and flashes it to the ESP32. You must upload the filesystem image at least once. If you only change the C++ code, you only need to upload the firmware. If you change any HTML, CSS, or JS files, you must re-upload the filesystem image.
+5.  **Connect to WiFi:** On your computer or phone, find and connect to the WiFi network named **`ESP32Controller`**. The default password is **`12345678`**.
+6.  **Open a web browser** (Chrome or Firefox recommended) and navigate to `http://192.168.4.1`.
 
 ## Overview
 
@@ -58,13 +60,83 @@ The HTML, CSS, and JavaScript files run in the client's web browser.
 2.  **Control Pages (`/` and `/mobile`):** These pages read either a physical gamepad or virtual joysticks, apply all configured mixes and transformations from `controlMap.json`, and stream the final channel values to the ESP32.
 3.  **Configuration Pages (`/config/inputs`, `/config/outputs`, `/battery`):** These provide UIs to modify the system's behavior. When you save, the new configuration is sent to the ESP32, which overwrites the corresponding JSON file on its filesystem and restarts to apply the changes.
 
-## Configuration
+## Detailed Setup and Configuration
 
-The project is configured using JSON files stored on the ESP32's LittleFS filesystem. These files can be edited through the web interface.
+After the initial firmware and filesystem upload, you can configure the system using the web interface.
 
--   **`controlMap.json`:** Defines the input sources (gamepad buttons, axes, mobile controls) and how they are mapped to the 20 control channels. It also allows for creating "mixes" which are virtual inputs that combine multiple other inputs.
--   **`outputMap.json`:** Defines the physical outputs (servos, ESCs), which GPIO pins they are connected to, and how they should respond to the control channel values.
--   **`battery.json`:** Configures the battery monitoring, including the battery chemistry, cell count, and voltage divider resistors.
+### 1. WiFi Access Point Configuration
+
+The WiFi SSID and password can be changed in `src/main.cpp` within the `setup()` function. Look for the `WiFiManagerSimple::APConfig ap;` section.
+
+```cpp
+WiFiManagerSimple::APConfig ap;
+ap.ssid = "MyNewController"; // Change this to your desired SSID
+ap.password = "a-new-password"; // Change this to your desired password (min 8 characters)
+wifi.beginAP(ap);
+```
+
+After modifying and uploading `src/main.cpp`, your ESP32 will broadcast the new WiFi network.
+
+### 2. Input Mapping (Gamepad & Mobile)
+
+Navigate to `http://192.168.4.1/config/inputs` in your browser. This page allows you to map physical gamepad inputs or virtual mobile joystick inputs to the 20 available control channels.
+
+**<center>![Screenshot of Input Configuration Page Overview](screenshots/screenshot_input_overview.png)</center>**
+
+#### Gamepad Inputs
+
+1.  **Start Gamepad Live View:** Click "Start Sending" to activate the gamepad polling. Connect your gamepad to your computer and press some buttons/move sticks to see the live values update on the cards.
+2.  **Map to Channel:** For each input (e.g., "Left Stick X", "A Button"), select the desired control channel from the "Map to:" dropdown. Unselected inputs will not send data.
+    **<center>![Screenshot of Gamepad Input Mapping](screenshots/screenshot_gamepad_mapping.png)</center>**
+3.  **Transformations (Deadband, Expo, Invert):**
+    *   **Deadband:** Reduces sensitivity around the center of an axis, ignoring small movements. Set a value (e.g., 0.04) to create a "dead zone."
+    *   **Expo:** Adjusts the stick response curve. Positive expo makes the center less sensitive and the ends more sensitive, while negative expo makes it more sensitive around the center.
+    *   **Invert:** Reverses the direction of an axis.
+    **<center>![Screenshot of Input Transformations](screenshots/screenshot_input_transformations.png)</center>**
+
+#### Mobile Inputs
+
+Switch to the "Mobile" tab on the inputs configuration page. Here you can configure the virtual joysticks and buttons available on the `/mobile` page.
+
+**<center>![Screenshot of Mobile Input Configuration Tab](screenshots/screenshot_mobile_input_tab.png)</center>**
+
+
+
+### 3. Output Configuration
+
+Navigate to `http://192.168.4.1/config/outputs` in your browser. This page allows you to define and configure the physical outputs connected to your ESP32, such as ESCs (Electronic Speed Controllers) for motors or Servos.
+
+**<center>![Screenshot of Output Configuration Page Overview](screenshots/screenshot_output_overview.png)</center>**
+
+1.  **Add Output:** Click the "Add Output" button to create a new output configuration.
+2.  **Configure Output:**
+    *   **Type:** Select `ESC (Brushed)` or `Servo`. This determines the default pulse ranges and frequency.
+    *   **Source Channel:** Select which control channel (1-20) will drive this output.
+    *   **PWM Pin:** Enter the GPIO pin number on your ESP32 where this output is connected.
+    *   **Input Range:** Defines the expected range of values from the source channel (typically -1 to 1 for axes, 0 to 1 for buttons).
+    *   **Output Range:** Defines the desired output value range for your hardware (e.g., 0 to 180 for a servo in degrees, -100 to 100 for an ESC's speed).
+    **<center>![Screenshot of Single Output Configuration](screenshots/screenshot_single_output.png)</center>**
+
+3.  **Save Changes:** After configuring all outputs, click the "Save Outputs" button. This will save the `outputMap.json` file to the ESP32's filesystem and the ESP32 will restart to apply the changes.
+
+### 4. Battery Monitoring Setup
+
+Navigate to `http://192.168.4.1/battery` in your browser. This page allows you to configure the battery monitoring system.
+
+**<center>![Screenshot of Battery Monitoring Configuration Page](screenshots/screenshot_battery_config.png)</center>**
+
+1.  **Enable Monitoring:** Check the "Enable Battery Monitoring" checkbox.
+2.  **Chemistry & Cell Count:** Select your battery's chemistry (LiPo or LiFePO4) and the number of cells (e.g., 3S, 4S). This helps in calculating voltage percentages.
+3.  **ADC Pin:** Enter the GPIO pin number on your ESP32 where the voltage divider output is connected.
+4.  **Voltage Divider Resistors (R1, R2):**
+    *   The page provides a recommendation for R1 and R2 values based on your battery configuration to safely scale the battery voltage down to the ESP32's 3.3V ADC input.
+    *   **Wiring:** Connect `(BAT+) --- [ R1 ] --- (ADC PIN) --- [ R2 ] --- (GND)`.
+    *   **Override:** If you have existing resistors or specific requirements, you can check "Override Recommended Resistors" and manually enter R1 and R2 values. Be **extremely careful** here, as incorrect values can damage your ESP32's ADC pin if the voltage exceeds 3.3V. The UI will provide warnings if potential damage is detected.
+    **<center>![Screenshot of Battery Resistor Calculation/Override](screenshots/screenshot_battery_resistors.png)</center>**
+5.  **Acknowledge Risk:** Read the warning about potential damage and check the "I understand the risk..." checkbox to enable the Save button.
+6.  **Save Changes:** Click "Save Battery Config". This will save the `battery.json` file to the ESP32's filesystem and the ESP32 will restart to apply the changes.
+
+---
 
 ## File Structure
 
