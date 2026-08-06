@@ -32,6 +32,7 @@ void setup() {
 
     // HTTP pages
     web.addPageRoute("/", "/index.html");
+    web.addPageRoute("/mobile", "/mobile.html");
     web.addPageRoute("/config/inputs",  "/config_inputs.html");
     web.addPageRoute("/config/outputs", "/config_outputs.html");
 

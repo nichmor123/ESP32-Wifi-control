@@ -2,14 +2,17 @@ async function main() {
   // Establish WebSocket connection early
   connectWebSocket();
 
-  // Load the control map which is needed by both pages
-  await loadControlMap();
-  appendLog(logEl || debugEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
-
   // Initialize page-specific logic
   if (isConfigInputsPage()) {
+    await loadControlMap();
+    appendLog(debugEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
     initConfigInputsPage();
+  } else if (isMobilePage()) {
+    // Mobile page is self-contained and does not need controlMap
+    initMobilePage();
   } else if (isIndexPage()) {
+    await loadControlMap();
+    appendLog(logEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
     initIndexPage();
   }
 }

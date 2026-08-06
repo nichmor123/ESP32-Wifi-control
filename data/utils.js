@@ -15,6 +15,11 @@ const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
 const saveBtn = document.getElementById("saveBtn");
 
+// Mobile page elements
+const joystickLeftEl = document.getElementById("joystick-left-container");
+const joystickRightEl = document.getElementById("joystick-right-container");
+const statusDotEl = document.getElementById("status-dot");
+
 // ---------- shared helpers ----------
 function round3(v) {
   return Math.round(v * 1000) / 1000;
@@ -29,6 +34,10 @@ function isConfigInputsPage() {
   return !!(gpStatusEl && channelGridEl);
 }
 
+function isMobilePage() {
+  return !!(joystickLeftEl && joystickRightEl);
+}
+
 function appendLog(targetEl, msg) {
   if (!targetEl) return;
   const line = document.createElement("div");
@@ -41,6 +50,11 @@ function setStatus(el, text, color) {
   if (!el) return;
   el.textContent = text;
   if (color) el.style.color = color;
+
+  // Also update the mobile status dot if it exists
+  if (statusDotEl) {
+    statusDotEl.style.background = color || '#ff4444';
+  }
 }
 
 function clamp(v, lo, hi) {
