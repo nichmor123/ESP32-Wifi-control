@@ -11,6 +11,7 @@ The system is highly configurable, with a dedicated web page for mapping gamepad
 ## Features
 
 - **Standalone Access Point:** No external WiFi network required.
+- **Dual Control Modes:** Use a physical USB gamepad from a computer or on-screen virtual joysticks on a mobile device.
 - **Asynchronous Web Server:** High-performance, non-blocking server capable of handling multiple connections.
 - **Real-Time Control:** Low-latency control data is sent at 100Hz using an efficient binary WebSocket protocol.
 - **Browser-Based Gamepad Support:** Uses the standard web Gamepad API to read controller inputs.
@@ -34,11 +35,13 @@ The C++ code running on the ESP32 is responsible for:
 ### Web Application (`data/`)
 
 The HTML, CSS, and JavaScript files run in the client's web browser.
+
 1.  **Connection:** The JavaScript connects to the ESP32's WebSocket server.
 2.  **Gamepad API:** It polls a connected gamepad for its state (axis positions, button presses).
 3.  **Data Processing:**
     - On the **Main Page** (`index.html`), it continuously reads the gamepad, applies transformations (deadband, expo) defined in `controlMap.json`, and sends the final channel values as a compact binary array to the ESP32. To preserve the ESP32's watchdog timer, it keeps sending data as long as any control is active (not zero), even if the value isn't changing.
     - On the **Input Mapping Page** (`config_inputs.html`), it provides a UI to visually assign gamepad inputs to channels. When saved, it sends the new configuration to the ESP32, which overwrites the `controlMap.json` file.
+    - On the **Mobile Page** (`mobile.html`), it presents a full-screen interface with two virtual joysticks and two buttons, sending their state directly to the first six channels. This page is self-contained and does not require an internet connection to load.
 
 ## File Structure
 
@@ -147,4 +150,3 @@ This project relies on the following PlatformIO libraries, which are managed aut
 ---
 
 Happy building!
-
