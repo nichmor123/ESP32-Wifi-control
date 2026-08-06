@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <LittleFS.h>
 
 #include "networkAndWebserver/WifiAPConfig.h"
 #include "networkAndWebserver/StaticFileServer.h"
@@ -30,8 +31,12 @@ void setup() {
     wifi.beginAP(ap);
 
     // HTTP pages
+    web.addPageRoute("/", "/index.html");
     web.addPageRoute("/config/inputs",  "/config_inputs.html");
     web.addPageRoute("/config/outputs", "/config_outputs.html");
+
+    //server other files
+    web.server().serveStatic("/", LittleFS, "/");
 
     // WebSocket + commands
     RegisterProjectWsCommands(ws);
@@ -50,7 +55,7 @@ void setup() {
 void loop() {
     const uint32_t now = millis();
 
-    // ----- fixed-rate control tick -----
+    // fixed-rate control tick
     if ((uint32_t)(now - lastControlMs) >= CONTROL_DT_MS) {
         lastControlMs = now;
 
@@ -71,22 +76,22 @@ void loop() {
             // driveFromChannel(c1);
             (void)c1;
         }
+    }
 
-        // ----- debug print decoupled from control tick -----
-        if ((uint32_t)(now - lastPrintMs) >= PRINT_DT_MS) {
-            lastPrintMs = now;
+    // fixed-rate print tick
+    if ((uint32_t)(now - lastPrintMs) >= PRINT_DT_MS) {
+        lastPrintMs = now;
 
-            // Use the SAME snapshot we already copied this tick.
-            // (No extra GetChannelBusSnapshot() call.)
-            const float c1 = bus.ch[0];
+        const ChannelBus bus = GetChannelBusSnapshot();
+        const bool stale = (bus.lastRxMs == 0) || ((uint32_t)(now - bus.lastRxMs) > RX_TIMEOUT_MS);
+        const float c1 = bus.ch[0];
 
-            Serial.print("C1=");
-            Serial.print(c1, 3);
-            Serial.print("  lastRxMs=");
-            Serial.print(bus.lastRxMs);
-            Serial.print("  stale=");
-            Serial.println(stale ? "YES" : "NO");
-        }
+        Serial.print("C1=");
+        Serial.print(c1, 3);
+        Serial.print("  lastRxMs=");
+        Serial.print(bus.lastRxMs);
+        Serial.print("  stale=");
+        Serial.println(stale ? "YES" : "NO");
     }
 
     // Nothing else needed; WiFi/Async server runs in background tasks
