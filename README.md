@@ -85,7 +85,7 @@ Navigate to `http://192.168.4.1/config/inputs` in your browser. This page allows
 
 #### Gamepad Inputs
 
-1.  **Start Gamepad Live View:** Click "Start Sending" to activate the gamepad polling. Connect your gamepad to your computer and press some buttons/move sticks to see the live values update on the cards.
+1.  **Start Gamepad Live View:** Click "Start Reading" to activate the gamepad polling. Connect your gamepad to your computer and press some buttons/move sticks to see the live values update on the cards.
 2.  **Map to Channel:** For each input (e.g., "Left Stick X", "A Button"), select the desired control channel from the "Map to:" dropdown. Unselected inputs will not send data.
     **<center>![Screenshot of Gamepad Input Mapping](screenshots/screenshot_gamepad_mapping.png)</center>**
 3.  **Transformations (Deadband, Expo, Invert):**
@@ -115,7 +115,7 @@ Navigate to `http://192.168.4.1/config/outputs` in your browser. This page allow
     *   **PWM Pin:** Enter the GPIO pin number on your ESP32 where this output is connected.
     *   **Input Range:** Defines the expected range of values from the source channel (typically -1 to 1 for axes, 0 to 1 for buttons).
     *   **Output Range:** Defines the desired output value range for your hardware (e.g., 0 to 180 for a servo in degrees, -100 to 100 for an ESC's speed).
-    **<center>![Screenshot of Single Output Configuration](screenshots/screenshot_single_output.png)</center>**
+
 
 3.  **Save Changes:** After configuring all outputs, click the "Save Outputs" button. This will save the `outputMap.json` file to the ESP32's filesystem and the ESP32 will restart to apply the changes.
 
