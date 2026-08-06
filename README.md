@@ -37,6 +37,35 @@ The system is highly configurable, with a dedicated web page for mapping gamepad
 - **Built-in Failsafe:** The ESP32 code includes a timeout to detect connection loss and can trigger a failsafe state (e.g., stop motors).
 - **Modular Codebase:** Both the C++ firmware and the frontend JavaScript are broken into logical, maintainable modules.
 
+## How It Works
+
+The project consists of two main parts: the ESP32 firmware and the client-side web application.
+
+### ESP32 Firmware (`src/`)
+
+The C++ code running on the ESP32 is responsible for:
+1.  **WiFi AP:** Creates a WiFi network with the SSID `ESP32Controller`.
+2.  **Web Server:** An `ESPAsyncWebServer` instance serves the static web files (`.html`, `.css`, `.js`) from the `LittleFS` filesystem.
+3.  **WebSocket Server:** An `AsyncWebSocket` server listens for incoming client connections on the `/ws` endpoint. It's built to handle specific JSON commands (like saving a configuration) and to receive the main binary control packets.
+4.  **Control Loop:** The main `loop()` runs a 100Hz control tick. It reads the latest channel data, checks for a stale connection (failsafe), and tells the `OutputManager` to drive the hardware.
+5.  **Sensor Loop:** A 10Hz loop reads the `BatteryMonitor` and broadcasts the status to all connected web clients.
+
+### Web Application (`data/`)
+
+The HTML, CSS, and JavaScript files run in the client's web browser.
+
+1.  **Connection:** The JavaScript connects to the ESP32's WebSocket server.
+2.  **Control Pages (`/` and `/mobile`):** These pages read either a physical gamepad or virtual joysticks, apply all configured mixes and transformations from `controlMap.json`, and stream the final channel values to the ESP32.
+3.  **Configuration Pages (`/config/inputs`, `/config/outputs`, `/battery`):** These provide UIs to modify the system's behavior. When you save, the new configuration is sent to the ESP32, which overwrites the corresponding JSON file on its filesystem and restarts to apply the changes.
+
+## Configuration
+
+The project is configured using JSON files stored on the ESP32's LittleFS filesystem. These files can be edited through the web interface.
+
+-   **`controlMap.json`:** Defines the input sources (gamepad buttons, axes, mobile controls) and how they are mapped to the 20 control channels. It also allows for creating "mixes" which are virtual inputs that combine multiple other inputs.
+-   **`outputMap.json`:** Defines the physical outputs (servos, ESCs), which GPIO pins they are connected to, and how they should respond to the control channel values.
+-   **`battery.json`:** Configures the battery monitoring, including the battery chemistry, cell count, and voltage divider resistors.
+
 ## File Structure
 
 ```text
@@ -98,14 +127,6 @@ Wifi_Control/
     └── README
 ```
 
-## Configuration
-
-The project can be configured through the web interface or by modifying the JSON files in the `data/` directory.
-
--   **Input Mapping:** `data/controlMap.json`
--   **Output Mapping:** `data/outputMap.json`
--   **Battery Monitoring:** `data/battery.json`
-
 ## Troubleshooting
 
 The web interface includes a "Troubleshooting" page with the following features:
@@ -122,3 +143,10 @@ This project relies on the following PlatformIO libraries, which are managed aut
 -   `https://github.com/ESP32Async/AsyncTCP.git`
 -   `https://github.com/ESP32Async/ESPAsyncWebServer.git`
 
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request on the GitHub repository.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
