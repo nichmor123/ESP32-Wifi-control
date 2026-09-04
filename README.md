@@ -10,8 +10,9 @@ This project turns an ESP32 into a high-performance, standalone WiFi controller 
     > **Note:** This compiles and flashes the C++ code to the ESP32.
 4.  **Upload Filesystem:** Use the PlatformIO "Upload Filesystem Image" task.
     > **Note:** This bundles the contents of the `data/` directory into a LittleFS image and flashes it to the ESP32. You must upload the filesystem image at least once. If you only change the C++ code, you only need to upload the firmware. If you change any HTML, CSS, or JS files, you must re-upload the filesystem image.
-5.  **Connect to WiFi:** On your computer or phone, find and connect to the WiFi network named **`ESP32Controller`**. The default password is **`12345678`**.
-6.  **Open a web browser** (Chrome or Firefox recommended) and navigate to `http://192.168.4.1`.
+5.  **Identify Your Controller:** If the controller is factory fresh (or unmodified), it will scan the local networks and assign itself a unique number (e.g. `ESP32Controller-1`). The onboard LED will flash to indicate its number (e.g., 1 flash, pause, repeat). 
+6.  **Connect to WiFi:** On your computer or phone, find and connect to the WiFi network named **`ESP32Controller-1`** (or whatever number it flashed). The default password is **`12345678`**.
+7.  **Open a web browser** (Chrome or Firefox recommended) and navigate to `http://192.168.4.1`.
 
 ## Overview
 
@@ -35,7 +36,8 @@ The system is highly configurable, with a dedicated web page for mapping gamepad
 - **Troubleshooting Page:** Dedicated page with diagnostic tools (ping, heap, remote restart).
 - **Real-Time Control:** Low-latency control data is sent using an efficient binary WebSocket protocol.
 - **Browser-Based Gamepad Support:** Uses the standard web Gamepad API to read controller inputs.
-- **Persistent Configuration:** All input, output, and battery settings are saved to JSON files (`controlMap.json`, `outputMap.json`, `battery.json`) on the ESP32's `LittleFS` filesystem.
+- **Persistent Configuration:** All input, output, battery, and Wi-Fi settings are saved to JSON files (`controlMap.json`, `outputMap.json`, `battery.json`, `wifi.json`) on the ESP32's `LittleFS` filesystem.
+- **Auto-Initialization for Fleets:** Deploying multiple fresh boards at once will cause them to automatically scan the local airspace and assign themselves unique network numbers (`ESP32Controller-1`, `-2`, etc.), complete with visual LED flash codes.
 - **Built-in Failsafe:** The ESP32 code includes a timeout to detect connection loss and can trigger a failsafe state (e.g., stop motors).
 - **Modular Codebase:** Both the C++ firmware and the frontend JavaScript are broken into logical, maintainable modules.
 
@@ -66,16 +68,13 @@ After the initial firmware and filesystem upload, you can configure the system u
 
 ### 1. WiFi Access Point Configuration
 
-The WiFi SSID and password can be changed in `src/main.cpp` within the `setup()` function. Look for the `WiFiManagerSimple::APConfig ap;` section.
+Navigate to `http://192.168.4.1/settings` in your browser. This page allows you to change the Wi-Fi credentials for your ESP32 Access Point.
 
-```cpp
-WiFiManagerSimple::APConfig ap;
-ap.ssid = "MyNewController"; // Change this to your desired SSID
-ap.password = "a-new-password"; // Change this to your desired password (min 8 characters)
-wifi.beginAP(ap);
-```
+1. **SSID:** Enter the desired network name (e.g., "MyRobot").
+2. **Password:** Enter a password (must be at least 8 characters) or leave it blank to create an open network.
+3. **Save & Restart:** Once you hit save, the new credentials will be written to `wifi.json` and the ESP32 will instantly reboot. You will need to reconnect to the new Wi-Fi network.
 
-After modifying and uploading `src/main.cpp`, your ESP32 will broadcast the new WiFi network.
+> **Note on Multiple Controllers:** If you deploy multiple fresh ESP32s at the same time, their built-in `DeviceInitializer` will automatically scan the area and assign each a unique number (`ESP32Controller-1`, `ESP32Controller-2`, etc.) so they don't conflict out of the box! Their onboard LED will flash to visually tell you which board is which. Once you configure them via the Settings page, this auto-numbering is disabled.
 
 ### 2. Input Mapping (Gamepad & Mobile)
 
@@ -168,11 +167,14 @@ Wifi_Control/
 │   ├── page-config-outputs.js
 │   ├── page-index.js
 │   ├── page-mobile.js
+│   ├── page-settings.js
 │   ├── page-troubleshooting.js
+│   ├── settings.html
 │   ├── style.css
 │   ├── troubleshooting.html
 │   ├── utils.js
-│   └── websocket.js
+│   ├── websocket.js
+│   └── wifi.json
 ├── include/
 │   └── README
 ├── lib/
@@ -180,6 +182,9 @@ Wifi_Control/
 ├── platformio.ini
 ├── README.md
 ├── src/
+│   ├── initializer/
+│   │   ├── DeviceInitializer.cpp
+│   │   └── DeviceInitializer.h
 │   ├── main.cpp
 │   ├── networkAndWebserver/
 │   │   ├── ProjectWsCommands.cpp
