@@ -1,1 +1,1 @@
-{"ssid": "ESP32Controller", "password": "12345678", "modified": 0}
+{"hostname": "esp32controller", "ssid": "ESP32Controller", "password": "12345678", "modified": 0, "staticIP": "192.168.4.1"}

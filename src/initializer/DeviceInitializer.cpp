@@ -74,13 +74,10 @@ void DeviceInitializer::initialize(String& ssidToModify, String& passwordToModif
         wifiFile.close();
     }
     
-    // If it has been modified, we do not scan or flash.
-    if (isModified) {
-        Serial.println("Device previously modified. Skipping AP scanning and LED flashing.");
-        return;
-    }
+    // If it has been modified, we extract the name but STILL want to scan later!
+    // No early return here anymore.
 
-    Serial.println("Device not modified. Scanning for available SSIDs to find an open number...");
+    Serial.println("Scanning for available SSIDs to handle auto-numbering...");
 
     // 2. Scan networks to find a free suffix number
     WiFi.mode(WIFI_STA);
@@ -90,41 +87,38 @@ void DeviceInitializer::initialize(String& ssidToModify, String& passwordToModif
     int n = WiFi.scanNetworks();
     Serial.printf("Scan done, found %d networks\n", n);
 
-    int freeNumber = 1; // Default to 1
-
-    if (n > 0) {
-        bool numberUsed = true;
-        
-        while (numberUsed && freeNumber <= 9) { // Check up to 9
-            numberUsed = false;
-            String targetSsid = ssidToModify + "-" + String(freeNumber);
-            
-            for (int i = 0; i < n; ++i) {
-                if (WiFi.SSID(i) == targetSsid) {
-                    numberUsed = true;
-                    break;
+    // If it is UNMODIFIED, we ALWAYS start at 1 and auto-number to avoid default conflicts.
+    if (!isModified) {
+        int freeNumber = 1; // Default to 1
+        if (n > 0) {
+            bool numberUsed = true;
+            while (numberUsed && freeNumber <= 9) { // Check up to 9
+                numberUsed = false;
+                String targetSsid = ssidToModify + "-" + String(freeNumber);
+                for (int i = 0; i < n; ++i) {
+                    if (WiFi.SSID(i) == targetSsid) {
+                        numberUsed = true;
+                        break;
+                    }
+                }
+                if (numberUsed) {
+                    freeNumber++;
                 }
             }
-            if (numberUsed) {
-                freeNumber++;
-            }
         }
-    }
-    
-    // Add the suffix to the SSID
-    ssidToModify = ssidToModify + "-" + String(freeNumber);
-    Serial.printf("Assigned SSID: %s\n", ssidToModify.c_str());
+        
+        // Add the suffix to the SSID
+        ssidToModify = ssidToModify + "-" + String(freeNumber);
+        Serial.printf("Assigned Default SSID: %s\n", ssidToModify.c_str());
 
-    // 3. Start the background FreeRTOS LED task
-    g_flashNumber = freeNumber;
-    g_shouldFlash = true;
-    
-    xTaskCreate(
-        ledFlashTask,      // Task function
-        "LED_Flash_Task",  // Name
-        2048,              // Stack size
-        NULL,              // Parameters
-        1,                 // Priority
-        &g_ledTaskHandle   // Task handle
-    );
+        // Start the background FreeRTOS LED task for unmodified fresh boards
+        g_flashNumber = freeNumber;
+        g_shouldFlash = true;
+        xTaskCreate(ledFlashTask, "LED_Flash_Task", 2048, NULL, 1, &g_ledTaskHandle);
+    } 
+    else {
+        // If it HAS been modified, the logic to handle appending a number if the connection fails 
+        // has been moved to beginSTA_or_AP() inside WifiAPConfig.h!
+        Serial.println("Device customized. Passing SSID to connection handler...");
+    }
 }

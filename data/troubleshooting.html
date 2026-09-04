@@ -2,28 +2,25 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Config - Outputs</title>
+  <title>Troubleshooting</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/style.css">
 </head>
 
-<body id="page-config-outputs">
+<body id="page-troubleshooting">
 
 <div class="layout">
 
   <!-- Left Navigation -->
   <aside class="nav">
-
     <div class="navTitle">Controller</div>
-
     <a href="/">Main</a>
     <a href="/mobile">Mobile Control</a>
     <a href="/config/inputs">Input Mapping</a>
     <a href="/config/outputs">Output Mapping</a>
-        <a href="/battery">Battery</a>
-    <a href="/troubleshooting">Troubleshooting</a>
+    <a href="/battery">Battery</a>
+    <a href="/troubleshooting" class="active">Troubleshooting</a>
     <a href="/settings">Settings</a>
-
   </aside>
 
   <!-- Main Content -->
@@ -31,21 +28,22 @@
 
     <div class="card" style="max-width: 860px;">
 
-      <h1>Config: Outputs</h1>
-      <p class="subtitle">Configure how channels map to hardware outputs</p>
+      <h1>Troubleshooting & Diagnostics</h1>
+      <p class="subtitle">System tools and network debugging.</p>
       
       <div class="status" id="status">Disconnected</div>
       
-      <div class="grid" id="outputGrid">
-        <!-- Output cards will be generated here -->
-      </div>
-
       <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
-        <button id="addOutputBtn">+ Add Output</button>
-        <button id="saveOutputsBtn">Save Outputs</button>
+        <button id="pingBtn">Ping</button>
+        <button id="getHeapBtn">Check Memory (Heap)</button>
+        <button id="restartEspBtn" style="background-color: #ff4444; color: white;">Restart ESP32</button>
       </div>
 
-      <div class="log" id="debug"></div>
+      <div class="log" id="systemInfo" style="margin-top: 20px; min-height: 50px;">
+         <!-- Heap responses will appear here -->
+      </div>
+
+      <div class="log" id="log" style="margin-top: 20px;"></div>
 
     </div>
 
@@ -55,8 +53,7 @@
 
 <script src="/utils.js"></script>
 <script src="/websocket.js"></script>
-<script src="/controlMap.js"></script> <!-- Needed for channel count -->
-<script src="/page-config-outputs.js"></script>
+<script src="/page-troubleshooting.js"></script>
 <script src="/app.js"></script>
 
 </body>

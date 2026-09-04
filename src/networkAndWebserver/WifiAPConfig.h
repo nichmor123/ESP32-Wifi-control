@@ -21,6 +21,87 @@ public:
 
     WiFiManagerSimple() = default;
 
+    bool beginSTA_or_AP(APConfig& cfg) {
+        _apConfig = cfg;
+
+        WiFi.mode(WIFI_STA);
+        WiFi.disconnect();
+        delay(100);
+
+        Serial.print("Scanning for network: ");
+        Serial.println(cfg.ssid);
+
+        int n = WiFi.scanNetworks();
+        bool found = false;
+        if (n > 0) {
+            for (int i = 0; i < n; ++i) {
+                if (WiFi.SSID(i) == cfg.ssid) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (found) {
+            Serial.println("Network found! Attempting to connect as Client (STA)...");
+            
+            // Start connection
+            WiFi.begin(cfg.ssid.c_str(), cfg.password.length() >= 8 ? cfg.password.c_str() : nullptr);
+            
+            int attempts = 0;
+            while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+                delay(500);
+                Serial.print(".");
+                attempts++;
+            }
+            Serial.println();
+
+            if (WiFi.status() == WL_CONNECTED) {
+                Serial.println("Connected successfully!");
+                Serial.print("STA IP: ");
+                Serial.println(WiFi.localIP());
+                
+                // Set transmit power
+                esp_wifi_set_max_tx_power(powerEnumToValue(cfg.txPower));
+                return true;
+            } else {
+                Serial.println("Connection failed! Wrong password or poor signal.");
+                Serial.println("Falling back to AP Mode with modified SSID...");
+                
+                WiFi.disconnect();
+                
+                // Find a free suffix for the AP
+                int freeNumber = 1;
+                bool numberUsed = true;
+                String baseSsid = cfg.ssid;
+                
+                while (numberUsed && freeNumber <= 9) {
+                    numberUsed = false;
+                    String targetSsid = baseSsid + "-" + String(freeNumber);
+                    for (int i = 0; i < n; ++i) {
+                        if (WiFi.SSID(i) == targetSsid) {
+                            numberUsed = true;
+                            break;
+                        }
+                    }
+                    if (numberUsed) {
+                        freeNumber++;
+                    }
+                }
+                
+                cfg.ssid = baseSsid + "-" + String(freeNumber);
+            }
+        } else {
+            Serial.println("Network not found. Starting Access Point (AP)...");
+        }
+
+        // We get here if:
+        // 1. Network wasn't found (start AP with base SSID)
+        // 2. Network was found but connection failed (start AP with suffix SSID)
+        
+        return beginAP(cfg);
+    }
+
     bool beginAP(const APConfig& cfg) {
         _apConfig = cfg;
 

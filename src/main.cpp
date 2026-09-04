@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <LittleFS.h>
+#include <ESPmDNS.h>
 
 #include "networkAndWebserver/WifiAPConfig.h"
 #include "networkAndWebserver/StaticFileServer.h"
@@ -36,15 +37,52 @@ void setup() {
     }
     httpCfg.mountFS = false; // Webserver doesn't need to mount it again
 
-    // AP Configuration
+        // AP Configuration
     WiFiManagerSimple::APConfig ap;
     ap.ssid = "ESP32Controller";
     ap.password = "12345678";
 
-    // Run device initializer (checks wifi.json, scans, changes SSID suffix, and flashes LED if un-modified)
+    // Run device initializer to extract custom credentials from wifi.json (if modified)
+    // or run the fleet-numbering logic (if un-modified).
     DeviceInitializer::initialize(ap.ssid, ap.password);
     
-    wifi.beginAP(ap);
+    // Check if the user specified a static IP
+    File wifiFile = LittleFS.open("/wifi.json", "r");
+    if (wifiFile) {
+        JsonDocument wifiDoc;
+        if (!deserializeJson(wifiDoc, wifiFile)) {
+            const char* staticIPStr = wifiDoc["staticIP"];
+            if (staticIPStr && strlen(staticIPStr) > 0) {
+                ap.localIP.fromString(staticIPStr);
+                ap.gateway.fromString(staticIPStr);
+            }
+        }
+        wifiFile.close();
+    }
+
+        // Attempt to connect as a Client (STA), fallback to Access Point (AP)
+    wifi.beginSTA_or_AP(ap);
+
+    // Set up mDNS for .local hostname resolution
+    File mDnsFile = LittleFS.open("/wifi.json", "r");
+    String hostname = "esp32controller";
+    if (mDnsFile) {
+        JsonDocument wifiDoc;
+        if (!deserializeJson(wifiDoc, mDnsFile)) {
+            const char* savedHostname = wifiDoc["hostname"];
+            if (savedHostname && strlen(savedHostname) > 0) {
+                hostname = savedHostname;
+            }
+        }
+        mDnsFile.close();
+    }
+    
+        if (MDNS.begin(hostname.c_str())) {
+        MDNS.addService("http", "tcp", 80);
+        Serial.printf("mDNS responder started. Hostname: http://%s.local\n", hostname.c_str());
+    } else {
+        Serial.println("Error setting up mDNS responder!");
+    }
 
     // HTTP pages
     web.addPageRoute("/", "/index.html");

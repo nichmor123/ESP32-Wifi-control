@@ -30,7 +30,20 @@
       <p class="subtitle">Configure system settings and Wi-Fi Access Point</p>
 
       <div class="sectionTitle">Wi-Fi AP Configuration</div>
+      <p class="subtitle" style="font-size: 14px; opacity: 0.9; margin-bottom: 20px;">
+        <strong>How Networking Works:</strong><br>
+        On boot, the controller will search for the SSID entered below.<br>
+        - If the network <strong>exists</strong>, the controller will attempt to connect to it (Client Mode).<br>
+        - If the password is wrong, it will automatically append a number (e.g., "-1") and broadcast its own Access Point.<br>
+        - If the network <strong>does not exist</strong>, the controller will broadcast it as an Access Point (Host Mode).<br>
+        You can always access the controller via its IP address or by navigating to <strong>http://&lt;hostname&gt;.local</strong> (e.g. http://esp32controller.local).
+      </p>
+
       <div class="form-row" style="flex-direction: column; align-items: flex-start; gap: 15px;">
+        <div style="width: 100%;">
+          <label for="hostnameInput" style="display:block; margin-bottom: 5px;">Hostname (for .local web access):</label>
+          <input type="text" id="hostnameInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #0c0c0c; color: #eee; font-size: 14px;" placeholder="esp32controller" maxlength="32">
+        </div>
         <div style="width: 100%;">
           <label for="ssidInput" style="display:block; margin-bottom: 5px;">SSID (Network Name):</label>
           <input type="text" id="ssidInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #0c0c0c; color: #eee; font-size: 14px;" placeholder="ESP32Controller" maxlength="32">
@@ -42,6 +55,10 @@
         <div style="width: 100%;">
           <label for="confirmPasswordInput" style="display:block; margin-bottom: 5px;">Confirm Password:</label>
           <input type="text" id="confirmPasswordInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #0c0c0c; color: #eee; font-size: 14px;" placeholder="12345678" maxlength="63">
+        </div>
+        <div style="width: 100%;">
+          <label for="ipInput" style="display:block; margin-bottom: 5px;">Static IP Address (AP Mode Only):</label>
+          <input type="text" id="ipInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #0c0c0c; color: #eee; font-size: 14px;" placeholder="192.168.4.1" maxlength="15">
         </div>
       </div>
 
