@@ -18,10 +18,12 @@ async function main() {
     initBatteryPage();
   } else if (isTroubleshootingPage()) {
     initTroubleshootingPage();
-  } else if (isIndexPage()) {
+    } else if (isIndexPage()) {
     await loadControlMap();
     appendLog(logEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
     initIndexPage();
+  } else if (isSettingsPage()) {
+    initSettingsPage();
   }
 }
 

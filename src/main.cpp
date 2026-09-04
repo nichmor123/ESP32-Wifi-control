@@ -7,6 +7,7 @@
 #include "networkAndWebserver/ProjectWsCommands.h"
 #include "outputs/OutputManager.h"
 #include "sensors/BatteryMonitor.h"
+#include "initializer/DeviceInitializer.h"
 
 WiFiManagerSimple wifi;
 
@@ -29,10 +30,20 @@ static uint32_t lastPrintMs   = 0;
 void setup() {
     Serial.begin(921600);
 
-    // AP
+        // Initialize the filesystem first so we can read configs!
+    if (!LittleFS.begin(true)) {
+        Serial.println("LittleFS Mount Failed");
+    }
+    httpCfg.mountFS = false; // Webserver doesn't need to mount it again
+
+    // AP Configuration
     WiFiManagerSimple::APConfig ap;
     ap.ssid = "ESP32Controller";
     ap.password = "12345678";
+
+    // Run device initializer (checks wifi.json, scans, changes SSID suffix, and flashes LED if un-modified)
+    DeviceInitializer::initialize(ap.ssid, ap.password);
+    
     wifi.beginAP(ap);
 
     // HTTP pages
@@ -40,8 +51,9 @@ void setup() {
     web.addPageRoute("/mobile", "/mobile.html");
     web.addPageRoute("/config/inputs",  "/config_inputs.html");
     web.addPageRoute("/battery", "/battery.html");
-    web.addPageRoute("/troubleshooting", "/troubleshooting.html");
+        web.addPageRoute("/troubleshooting", "/troubleshooting.html");
     web.addPageRoute("/config/outputs", "/config_outputs.html");
+    web.addPageRoute("/settings", "/settings.html");
 
     //server other files
     web.server().serveStatic("/", LittleFS, "/");

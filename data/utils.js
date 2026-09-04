@@ -40,6 +40,10 @@ function isIndexPage() {
   return document.body.id === 'page-index';
 }
 
+function isSettingsPage() {
+  return document.body.id === 'page-settings';
+}
+
 function isConfigInputsPage() {
   return document.body.id === 'page-config-inputs';
 }

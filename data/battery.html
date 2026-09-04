@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Config - Battery</title>
+    <title>Troubleshooting</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/style.css">
 </head>
 
-<body id="page-battery">
+<body id="page-troubleshooting">
 
 <div class="layout">
 
@@ -20,71 +20,31 @@
         <a href="/config/outputs">Output Mapping</a>
         <a href="/battery">Battery</a>
         <a href="/troubleshooting">Troubleshooting</a>
+        <a href="/settings">Settings</a>
     </aside>
 
     <!-- Main Page Content -->
     <main class="page">
-        <div class="card" style="max-width: 860px;">
-            <h1>Battery Monitor Setup</h1>
-            <p class="subtitle">Configure the voltage divider for battery monitoring.</p>
+        <div class="card">
+            <h1>Troubleshooting & Diagnostics</h1>
+            <p class="subtitle">Tools to monitor and manage the ESP32.</p>
+
             <div class="status" id="status">Disconnected</div>
 
-            <div class="form-row">
-                <label for="enable-cb">Enable Monitor:</label>
-                <input type="checkbox" id="enable-cb">
+            <div class="sectionTitle">Connection Test</div>
+            <button id="pingBtn">Send Ping</button>
+
+            <div class="sectionTitle" style="margin-top: 20px;">System Info</div>
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+                <button id="getHeapBtn">Get Free Heap</button>
             </div>
+            <div id="systemInfo" class="log" style="max-height: 100px;"></div>
 
-            <div class="form-grid" style="grid-template-columns: 150px 1fr; margin-top: 20px;">
-                <label for="chem-select">Chemistry:</label>
-                <select id="chem-select">
-                    <option value="lipo">LiPo / Li-ion</option>
-                    <option value="lifepo4">LiFePO4</option>
-                </select>
+            <div class="sectionTitle" style="margin-top: 20px;">Actions</div>
+            <button id="restartEspBtn" style="background: #ff4444; color: #fff;">Restart ESP32</button>
 
-                <label for="cell-count-input">Cell Count:</label>
-                <input type="number" id="cell-count-input" value="3" min="1" max="12">
-
-                <label for="pin-input">Analog Pin:</label>
-                <input type="number" id="pin-input" placeholder="e.g., 34">
-            </div>
-
-            <div class="sectionTitle">Resistor Calculator</div>
-            <div id="resistor-info" class="log" style="text-align: left; max-height: none;">
-                <!-- Calculated values will be inserted here -->
-            </div>
-
-            <div class="form-row">
-                <input type="checkbox" id="override-resistors-cb">
-                <label for="override-resistors-cb">Manually override resistor values</label>
-            </div>
-            <div id="manual-resistors-section" style="display: none;">
-                <div class="form-grid" style="grid-template-columns: 150px 1fr; margin-top: 10px;">
-                    <label for="r1-input">Resistor 1 (R1) Ω:</label>
-                    <input type="number" id="r1-input" placeholder="e.g., 33000">
-                    <label for="r2-input">Resistor 2 (R2) Ω:</label>
-                    <input type="number" id="r2-input" placeholder="e.g., 10000">
-                </div>
-                <div id="override-warning" class="warning-box" style="display: none; margin-top: 10px;"></div>
-            </div>
-
-            <div class="warning-box">
-                <strong>WARNING:</strong> Incorrect wiring or pin selection can permanently damage your ESP32.
-                <ul>
-                    <li>Use an **Analog-to-Digital Converter (ADC)** pin that can tolerate up to 3.3V.</li>
-                    <li>Consult your specific ESP32 board's documentation to find a suitable ADC pin.</li>
-                    <li>Double-check your wiring before applying power.</li>
-                </ul>
-                <div style="margin-top: 10px;">
-                    <input type="checkbox" id="risk-ack-cb">
-                    <label for="risk-ack-cb">I understand the risks and have verified my pin and wiring.</label>
-                </div>
-            </div>
-
-            <div style="text-align: center; margin-top: 20px;">
-                <button id="saveBatteryBtn" disabled>Save Battery Config</button>
-            </div>
-
-            <div class="log" id="debug"></div>
+            <div class="sectionTitle" style="margin-top: 20px;">Activity Log</div>
+            <div class="log" id="log"></div>
         </div>
     </main>
 
@@ -92,7 +52,7 @@
 
 <script src="/utils.js"></script>
 <script src="/websocket.js"></script>
-<script src="/page-battery.js"></script>
+<script src="/page-troubleshooting.js"></script>
 <script src="/app.js"></script>
 
 </body>

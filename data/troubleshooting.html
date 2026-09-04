@@ -1,57 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Troubleshooting</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/style.css">
+  <meta charset="UTF-8">
+  <title>Config - Outputs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/style.css">
 </head>
 
-<body id="page-troubleshooting">
+<body id="page-config-outputs">
 
 <div class="layout">
 
-    <!-- Left Navigation -->
-    <aside class="nav">
-        <div class="navTitle">Controller</div>
-        <a href="/">Main</a>
-        <a href="/mobile">Mobile Control</a>
-        <a href="/config/inputs">Input Mapping</a>
-        <a href="/config/outputs">Output Mapping</a>
+  <!-- Left Navigation -->
+  <aside class="nav">
+
+    <div class="navTitle">Controller</div>
+
+    <a href="/">Main</a>
+    <a href="/mobile">Mobile Control</a>
+    <a href="/config/inputs">Input Mapping</a>
+    <a href="/config/outputs">Output Mapping</a>
         <a href="/battery">Battery</a>
-        <a href="/troubleshooting">Troubleshooting</a>
-    </aside>
+    <a href="/troubleshooting">Troubleshooting</a>
+    <a href="/settings">Settings</a>
 
-    <!-- Main Page Content -->
-    <main class="page">
-        <div class="card">
-            <h1>Troubleshooting & Diagnostics</h1>
-            <p class="subtitle">Tools to monitor and manage the ESP32.</p>
+  </aside>
 
-            <div class="status" id="status">Disconnected</div>
+  <!-- Main Content -->
+  <main class="page">
 
-            <div class="sectionTitle">Connection Test</div>
-            <button id="pingBtn">Send Ping</button>
+    <div class="card" style="max-width: 860px;">
 
-            <div class="sectionTitle" style="margin-top: 20px;">System Info</div>
-            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
-                <button id="getHeapBtn">Get Free Heap</button>
-            </div>
-            <div id="systemInfo" class="log" style="max-height: 100px;"></div>
+      <h1>Config: Outputs</h1>
+      <p class="subtitle">Configure how channels map to hardware outputs</p>
+      
+      <div class="status" id="status">Disconnected</div>
+      
+      <div class="grid" id="outputGrid">
+        <!-- Output cards will be generated here -->
+      </div>
 
-            <div class="sectionTitle" style="margin-top: 20px;">Actions</div>
-            <button id="restartEspBtn" style="background: #ff4444; color: #fff;">Restart ESP32</button>
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+        <button id="addOutputBtn">+ Add Output</button>
+        <button id="saveOutputsBtn">Save Outputs</button>
+      </div>
 
-            <div class="sectionTitle" style="margin-top: 20px;">Activity Log</div>
-            <div class="log" id="log"></div>
-        </div>
-    </main>
+      <div class="log" id="debug"></div>
+
+    </div>
+
+  </main>
 
 </div>
 
 <script src="/utils.js"></script>
 <script src="/websocket.js"></script>
-<script src="/page-troubleshooting.js"></script>
+<script src="/controlMap.js"></script> <!-- Needed for channel count -->
+<script src="/page-config-outputs.js"></script>
 <script src="/app.js"></script>
 
 </body>

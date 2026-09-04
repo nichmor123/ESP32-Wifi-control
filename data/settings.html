@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Settings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body id="page-settings">
+
+<div class="layout">
+
+  <!-- Left Navigation -->
+  <aside class="nav">
+    <div class="navTitle">Controller</div>
+    <a href="/">Main</a>
+    <a href="/mobile">Mobile Control</a>
+    <a href="/config/inputs">Input Mapping</a>
+    <a href="/config/outputs">Output Mapping</a>
+    <a href="/battery">Battery</a>
+    <a href="/troubleshooting">Troubleshooting</a>
+    <a href="/settings" class="active">Settings</a>
+  </aside>
+
+  <!-- Main Page Content -->
+  <main class="page">
+    <div class="card" style="max-width: 600px;">
+      <h1>Settings</h1>
+      <p class="subtitle">Configure system settings and Wi-Fi Access Point</p>
+
+      <div class="sectionTitle">Wi-Fi AP Configuration</div>
+      <div class="form-row" style="flex-direction: column; align-items: flex-start; gap: 15px;">
+        <div style="width: 100%;">
+          <label for="ssidInput" style="display:block; margin-bottom: 5px;">SSID (Network Name):</label>
+          <input type="text" id="ssidInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #0c0c0c; color: #eee; font-size: 14px;" placeholder="ESP32Controller" maxlength="32">
+        </div>
+        <div style="width: 100%;">
+          <label for="passwordInput" style="display:block; margin-bottom: 5px;">Password (Min 8 chars, blank for open):</label>
+          <input type="text" id="passwordInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #0c0c0c; color: #eee; font-size: 14px;" placeholder="12345678" maxlength="63">
+        </div>
+        <div style="width: 100%;">
+          <label for="confirmPasswordInput" style="display:block; margin-bottom: 5px;">Confirm Password:</label>
+          <input type="text" id="confirmPasswordInput" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #333; background: #0c0c0c; color: #eee; font-size: 14px;" placeholder="12345678" maxlength="63">
+        </div>
+      </div>
+
+      <div id="settingsError" class="error-box" style="display: none;"></div>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 25px;">
+        <button id="saveSettingsBtn">Save & Restart</button>
+      </div>
+
+      <div class="log" id="debug"></div>
+    </div>
+  </main>
+</div>
+
+<script src="/utils.js"></script>
+<script src="/websocket.js"></script>
+<script src="/page-settings.js"></script>
+<script src="/app.js"></script>
+
+</body>
+</html>

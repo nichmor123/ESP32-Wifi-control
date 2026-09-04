@@ -123,6 +123,41 @@ static void handleSaveOutputMapping(AsyncWebSocketClient* client, JsonVariantCon
     ESP.restart();
 }
 
+static void handleSaveWifiConfig(AsyncWebSocketClient* client, JsonVariantConst data) {
+    if (!data.is<JsonObjectConst>()) {
+        client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"data is not an object\"}}");
+        return;
+    }
+    JsonObjectConst obj = data.as<JsonObjectConst>();
+
+    if (!obj["wifiConfigText"].is<const char*>()) {
+        client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"wifiConfigText missing or not string\"}}");
+        return;
+    }
+    
+    // Set the modified flag to 1 so the device knows it has been configured
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, obj["wifiConfigText"]);
+    if (!error) {
+        doc["modified"] = 1;
+        
+        File file = LittleFS.open("/wifi.json", "w");
+        if (!file) {
+            client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"fs_error\"}}");
+            return;
+        }
+        serializeJson(doc, file);
+        file.close();
+
+        client->text("{\"cmd\":\"save_wifi_config_ok\",\"data\":{\"status\":\"ok\"}}");
+        // Add a short delay to ensure the WebSocket message is sent before restarting
+        delay(200);
+        ESP.restart();
+    } else {
+         client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"json_error\"}}");
+    }
+}
+
 // --- Diagnostic Handlers ---
 static void handleGetHeap(AsyncWebSocketClient* client) {
     JsonDocument doc;
@@ -171,9 +206,14 @@ void RegisterProjectWsCommands(WsCommandServer& ws) {
         handleSaveBatteryConfig(client, data);
     });
 
-    ws.on("save_output_mapping", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        ws.on("save_output_mapping", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
         (void)doc;
         handleSaveOutputMapping(client, data);
+    });
+
+    ws.on("save_wifi_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        (void)doc;
+        handleSaveWifiConfig(client, data);
     });
 
     ws.on("get_heap", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {

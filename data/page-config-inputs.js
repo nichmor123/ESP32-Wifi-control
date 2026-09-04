@@ -5,6 +5,53 @@ const buttonUiRefs = {}; // sourceId -> { pillEl, textEl, selectEl }
 const mobileChannelGridEl = document.getElementById("mobileChannelGrid");
 const mobileButtonGridEl = document.getElementById("mobileButtonGrid");
 
+// Helper to check for channel mapping conflicts
+function validateChannelMappings() {
+  const conflictEl = document.getElementById("conflictError");
+  const channelToSources = new Map();
+
+  for (const src of SOURCES) {
+    const ch = sourceToChannel.get(src.id);
+    if (typeof ch !== "number") continue;
+
+    if (!channelToSources.has(ch)) {
+      channelToSources.set(ch, []);
+    }
+    channelToSources.get(ch).push(src);
+  }
+
+  const conflicts = [];
+  for (const [ch, sources] of channelToSources.entries()) {
+    if (sources.length > 1) {
+      conflicts.push({ channel: ch, sources });
+    }
+  }
+
+  conflicts.sort((a, b) => a.channel - b.channel);
+
+  if (conflicts.length === 0) {
+    if (conflictEl) {
+      conflictEl.style.display = "none";
+      conflictEl.innerHTML = "";
+    }
+    return true; // No conflicts
+  }
+
+  // Display error message explaining why save was blocked
+  if (conflictEl) {
+    let html = `<strong>Cannot Save:</strong> Multiple inputs are mapped directly to the same channel without a Mix. Combine inputs using a Mix if you want to control the same channel with multiple inputs.<ul style="margin: 8px 0 0 20px; padding: 0;">`;
+    for (const c of conflicts) {
+      const names = c.sources.map(s => `<b>${s.label ?? s.id}</b>`).join(", ");
+      html += `<li style="margin-bottom: 4px;"><b>Channel ${c.channel} (C${c.channel}):</b> ${names}</li>`;
+    }
+    html += `</ul>`;
+    conflictEl.innerHTML = html;
+    conflictEl.style.display = "block";
+  }
+
+  return false; // Conflicts present
+}
+
 function buildUIFromControlMap() {
   if (!channelGridEl) return;
 
@@ -48,7 +95,7 @@ function buildUIFromControlMap() {
     const barFillEl = card.querySelector(`#abar_${src.id}`);
     const selectEl = card.querySelector(`#asel_${src.id}`);
 
-    selectEl.addEventListener("change", () => {
+        selectEl.addEventListener("change", () => {
       const raw = selectEl.value;
       if (raw === "") {
         sourceToChannel.delete(src.id);
@@ -60,6 +107,7 @@ function buildUIFromControlMap() {
           appendLog(debugEl, `Mapping: ${src.id} -> C${chNum}`);
         }
       }
+      validateChannelMappings();
     });
 
     axisUiRefs[src.id] = {
@@ -112,6 +160,7 @@ function buildUIFromControlMap() {
             appendLog(debugEl, `Mapping: ${src.id} -> C${chNum}`);
           }
         }
+        validateChannelMappings();
       });
 
       buttonUiRefs[src.id] = { pillEl, textEl, selectEl };
@@ -126,6 +175,13 @@ function buildUIFromControlMap() {
 
   if (saveBtn) {
     saveBtn.onclick = () => {
+      collectMixesData();
+
+      if (!validateChannelMappings()) {
+        appendLog(debugEl, "Save blocked: Multiple inputs are assigned to the same channel.");
+        return;
+      }
+
       const list = [];
 
       for (const src of SOURCES) {
@@ -269,7 +325,7 @@ function buildMixesUI() {
         return xf;
     };
 
-    // Channel mapping for the mix
+        // Channel mapping for the mix
     card.querySelector('.mix-channel-select').addEventListener('change', (e) => {
         const raw = e.target.value;
         if (raw === "") {
@@ -277,7 +333,7 @@ function buildMixesUI() {
         } else {
             sourceToChannel.set(mix.id, parseInt(raw, 10));
         }
-        // No re-render needed, just update the map
+        validateChannelMappings();
     });
 
     // Invert checkbox for the mix

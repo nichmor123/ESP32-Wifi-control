@@ -45,9 +45,9 @@ void BatteryMonitor::begin() {
 
     pinMode(_config.pin, INPUT);
 
-    // Prime the moving average filter with initial readings
+        // Prime the moving average filter with initial readings
     for (int i = 0; i < NUM_READINGS; ++i) {
-        _readings[i] = analogRead(_config.pin);
+        _readings[i] = analogReadMilliVolts(_config.pin) / 1000.0f; // Use calibrated millivolts
         delay(2); // Small delay between readings
     }
 
@@ -58,16 +58,15 @@ void BatteryMonitor::update() {
     if (!_config.enabled) return;
 
     // --- Moving Average Filter ---
-    // Read from the sensor and update the readings array
-    _readings[_readingIndex] = analogRead(_config.pin);
+    // Read from the sensor in calibrated Volts and update the readings array
+    _readings[_readingIndex] = analogReadMilliVolts(_config.pin) / 1000.0f;
     _readingIndex = (_readingIndex + 1) % NUM_READINGS;
 
     // Calculate the average
     float total = 0;
     for(int i=0; i<NUM_READINGS; ++i) total += _readings[i];
 
-    float averageRaw = total / NUM_READINGS;
-    float v_out = (averageRaw / (float)_config.adcResolution) * _config.vRef;
+    float v_out = total / NUM_READINGS; // v_out is now the average voltage in Volts
     _voltage = v_out * (_config.r1 + _config.r2) / _config.r2;
 }
 
