@@ -475,21 +475,30 @@ function initConfigInputsPage() {
           profileSelect.appendChild(opt);
       }
 
-      profileSelect.onchange = async () => {
+            profileSelect.onchange = () => {
+          // Simply update the variable tracking what we're looking at
+          profilesConfig.active_input = profilesConfig.inputs[profileSelect.value];
+          appendLog(debugEl, `Selected profile: ${profileSelect.value}. Click 'Load' to view it, or 'Save Mapping' to overwrite it.`);
+      };
+  }
+
+  // Load Profile Button
+  const loadProfileBtn = document.getElementById("loadProfileBtn");
+  if (loadProfileBtn) {
+      loadProfileBtn.onclick = async () => {
+          if (!profileSelect) return;
           const newActiveName = profileSelect.value;
           const newActiveFile = profilesConfig.inputs[newActiveName];
-          profilesConfig.active_input = newActiveFile;
           
-          // Try to load the newly selected file
           try {
               const res = await fetch(newActiveFile + "?v=" + Date.now(), { cache: "no-store" });
               if (res.ok) {
                   controlMap = await res.json();
                   rerenderAll();
-                  appendLog(debugEl, `Switched to profile: ${newActiveName}`);
+                  appendLog(debugEl, `Loaded profile: ${newActiveName}. Click 'Save Mapping' to apply changes to ESP32.`);
               }
           } catch (e) {
-              appendLog(debugEl, `Failed to switch to profile: ${newActiveName}`);
+              appendLog(debugEl, `Failed to load profile: ${newActiveName}`);
           }
       };
   }
