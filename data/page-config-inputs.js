@@ -334,11 +334,13 @@ function buildMixesUI() {
       });
     });
 
-    card.querySelectorAll('.mix-input-row .remove-input-btn').forEach((btn, index) => {
-      const group = btn.closest('.mix-group').querySelector('.add-input-btn').dataset.group;
-      btn.addEventListener('click', () => {
-        mix[group].splice(index, 1);
-        buildMixesUI();
+        card.querySelectorAll('.mix-group').forEach(groupEl => {
+      const group = groupEl.querySelector('.add-input-btn').dataset.group;
+      groupEl.querySelectorAll('.remove-input-btn').forEach((btn, index) => {
+        btn.addEventListener('click', () => {
+          mix[group].splice(index, 1);
+          buildMixesUI();
+        });
       });
     });
 
