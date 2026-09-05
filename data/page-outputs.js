@@ -107,8 +107,8 @@ function collectOutputData() {
     outputMap.outputs = newOutputs;
 }
 
-async function initOutputConfigPage() {
-    if (!isOutputConfigPage()) return;
+async function initOutputsPage() {
+    if (!isOutputsPage()) return;
 
     await loadOutputMap();
     renderOutputCards();

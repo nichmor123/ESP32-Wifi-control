@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Computer Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body id="page-computer">
+
+<div class="layout">
+
+    <!-- Left Navigation -->
+    <aside class="nav">
+
+        <div class="navTitle">Controller</div>
+
+        <a href="/">Overview</a>
+        <a href="/computer">Computer Control</a>
+        <a href="/mobile">Mobile Control</a>
+        <a href="/inputs">Input Mapping</a>
+        <a href="/mixes">Input Mixes</a>
+        <a href="/outputs">Output Mapping</a>
+        <a href="/battery">Battery</a>
+        <a href="/backup">Backup & Restore</a>
+        <a href="/troubleshooting">Troubleshooting</a>
+        <a href="/settings">Settings</a>
+
+    </aside>
+
+    <!-- Main Page Content -->
+    <main class="page">
+
+        <div class="card">
+
+            <h1>Computer Control</h1>
+            <p class="subtitle">Stream Gamepad & Keyboard inputs from your computer to the controller</p>
+
+            <div class="status" id="status">Disconnected</div>
+
+            <div class="log" id="log"></div>
+
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:14px;">
+                <button id="sendToggleBtn">Start Sending</button>
+            </div>
+
+            <div id="battery-indicator" class="battery-indicator" style="display: none;">
+                <div class="sectionTitle">Battery Status</div>
+                <div class="battery-bar-outer"><div class="battery-bar-fill green" style="width: 100%;"></div></div>
+                <div class="battery-text">-- V (--%)</div>
+            </div>
+
+            <div class="sectionTitle" style="margin-top:18px;">Channels Out</div>
+            <div class="grid" id="txChannelGrid"></div>
+
+        </div>
+
+    </main>
+
+</div>
+
+<script src="/utils.js"></script>
+<script src="/websocket.js"></script>
+<script src="/controlMap.js"></script>
+<script src="/gamepad.js"></script>
+<script src="/page-computer.js"></script>
+<script src="/app.js"></script>
+
+</body>
+</html>

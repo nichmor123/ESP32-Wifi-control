@@ -1,29 +1,27 @@
 #include <Arduino.h>
 #include <LittleFS.h>
-#include <ESPmDNS.h>
 
-#include "networkAndWebserver/WifiAPConfig.h"
-#include "networkAndWebserver/StaticFileServer.h"
-#include "networkAndWebserver/WsCommandServer.h"
-#include "networkAndWebserver/ProjectWsCommands.h"
+#include "networkAndWebserver/NetworkManager.h"
 #include "outputs/OutputManager.h"
 #include "sensors/BatteryMonitor.h"
-#include "initializer/DeviceInitializer.h"
+#include "led/StatusLedManager.h"
+#include "serial/SerialCommandHandler.h"
 
-WiFiManagerSimple wifi;
-
-StaticFileServer::Config httpCfg;
-StaticFileServer web(httpCfg);
-
-WsCommandServer ws("/ws");
-
+NetworkManager networkManager;
 OutputManager outputManager;
 BatteryMonitor batteryMonitor;
+SerialCommandHandler serialHandler;
+
+#ifndef BUILTIN_LED
+#define BUILTIN_LED 2
+#endif
+
+StatusLedManager statusLed(BUILTIN_LED, true);
 
 // --- timing ---
 static constexpr uint32_t CONTROL_DT_MS  = 10;   // 100 Hz control tick
 static constexpr uint32_t RX_TIMEOUT_MS  = 300;  // failsafe if no RX for 300ms
-static constexpr uint32_t PRINT_DT_MS    = 100;  // 10 Hz prints
+static constexpr uint32_t PRINT_DT_MS    = 1000; // 1 Hz prints & battery broadcast
 
 static uint32_t lastControlMs = 0;
 static uint32_t lastPrintMs   = 0;
@@ -31,78 +29,17 @@ static uint32_t lastPrintMs   = 0;
 void setup() {
     Serial.begin(921600);
 
-        // Initialize the filesystem first so we can read configs!
+    // Start LED manager
+    statusLed.begin();
+
+    // Initialize the filesystem first so configs & static files are available
     if (!LittleFS.begin(true)) {
         Serial.println("LittleFS Mount Failed");
     }
-    httpCfg.mountFS = false; // Webserver doesn't need to mount it again
 
-        // AP Configuration
-    WiFiManagerSimple::APConfig ap;
-    ap.ssid = "ESP32Controller";
-    ap.password = "12345678";
-
-    // Run device initializer to extract custom credentials from wifi.json (if modified)
-    // or run the fleet-numbering logic (if un-modified).
-    DeviceInitializer::initialize(ap.ssid, ap.password);
-    
-    // Check if the user specified a static IP
-    File wifiFile = LittleFS.open("/wifi.json", "r");
-    if (wifiFile) {
-        JsonDocument wifiDoc;
-        if (!deserializeJson(wifiDoc, wifiFile)) {
-            const char* staticIPStr = wifiDoc["staticIP"];
-            if (staticIPStr && strlen(staticIPStr) > 0) {
-                ap.localIP.fromString(staticIPStr);
-                ap.gateway.fromString(staticIPStr);
-            }
-        }
-        wifiFile.close();
-    }
-
-        // Attempt to connect as a Client (STA), fallback to Access Point (AP)
-    wifi.beginSTA_or_AP(ap);
-
-    // Set up mDNS for .local hostname resolution
-    File mDnsFile = LittleFS.open("/wifi.json", "r");
-    String hostname = "esp32controller";
-    if (mDnsFile) {
-        JsonDocument wifiDoc;
-        if (!deserializeJson(wifiDoc, mDnsFile)) {
-            const char* savedHostname = wifiDoc["hostname"];
-            if (savedHostname && strlen(savedHostname) > 0) {
-                hostname = savedHostname;
-            }
-        }
-        mDnsFile.close();
-    }
-    
-        if (MDNS.begin(hostname.c_str())) {
-        MDNS.addService("http", "tcp", 80);
-        Serial.printf("mDNS responder started. Hostname: http://%s.local\n", hostname.c_str());
-    } else {
-        Serial.println("Error setting up mDNS responder!");
-    }
-
-    // HTTP pages
-    web.addPageRoute("/", "/index.html");
-    web.addPageRoute("/mobile", "/mobile.html");
-    web.addPageRoute("/config/inputs",  "/config_inputs.html");
-    web.addPageRoute("/battery", "/battery.html");
-        web.addPageRoute("/troubleshooting", "/troubleshooting.html");
-    web.addPageRoute("/config/outputs", "/config_outputs.html");
-    web.addPageRoute("/settings", "/settings.html");
-
-    //server other files
-    web.server().serveStatic("/", LittleFS, "/");
-
-    // WebSocket + commands
-    RegisterProjectWsCommands(ws);
-    ws.begin();
-    ws.attachTo(web.server());
-
-    if (!web.begin()) {
-        Serial.println("Web server failed");
+    // Initialize network, AP/STA, mDNS, routes, web server, and WebSocket commands
+    if (!networkManager.begin(&statusLed)) {
+        Serial.println("Network initialization failed, restarting...");
         delay(2000);
         ESP.restart();
     }
@@ -110,22 +47,34 @@ void setup() {
     outputManager.begin();
     batteryMonitor.begin();
 
+    // Start Serial command handler
+    serialHandler.begin();
+
     Serial.println("Setup complete");
 }
 
 void loop() {
     const uint32_t now = millis();
 
-    // fixed-rate control tick
+    // Process incoming serial CLI commands
+    serialHandler.update();
+
+    // Clean up disconnected WebSocket clients
+    networkManager.update();
+
+    // Copy ONCE per tick (one lock/unlock)
+    const ChannelBus bus = GetChannelBusSnapshot();
+    const bool isRxActive = (bus.lastRxMs != 0) && ((uint32_t)(now - bus.lastRxMs) <= RX_TIMEOUT_MS);
+    const size_t wsClients = networkManager.getWsServer().getClientCount();
+
+    // Update system LED status manager
+    statusLed.update(isRxActive, wsClients);
+
+    // Fixed-rate control tick (100 Hz)
     if ((uint32_t)(now - lastControlMs) >= CONTROL_DT_MS) {
         lastControlMs = now;
 
-        // Copy ONCE per tick (one lock/unlock)
-        const ChannelBus bus = GetChannelBusSnapshot();
-
-        const bool stale = (bus.lastRxMs == 0) || ((uint32_t)(now - bus.lastRxMs) > RX_TIMEOUT_MS);
-
-        if (stale) {
+        if (!isRxActive) {
             // FAILSAFE: set outputs to a safe state
             outputManager.halt();
         } else {
@@ -134,14 +83,15 @@ void loop() {
         }
     }
 
-    // fixed-rate print tick
+    // Fixed-rate sensor/broadcast tick (1 Hz)
     if ((uint32_t)(now - lastPrintMs) >= PRINT_DT_MS) {
         lastPrintMs = now;
 
-        // Update sensors at a slower rate
+        // Update battery monitor
         batteryMonitor.update();
-        // Send battery status only if it's enabled
-        if (batteryMonitor.isEnabled()) {
+        
+        // Broadcast battery status if enabled and WebSocket clients are connected
+        if (batteryMonitor.isEnabled() && wsClients > 0) {
             JsonDocument doc;
             doc["cmd"] = "battery_update";
             JsonObject data = doc["data"].to<JsonObject>();
@@ -149,9 +99,7 @@ void loop() {
             data["percentage"] = batteryMonitor.getPercentage();
             String output;
             serializeJson(doc, output);
-            ws.broadcastText(output.c_str());
+            networkManager.getWsServer().broadcastText(output.c_str());
         }
     }
-
-    // Nothing else needed; WiFi/Async server runs in background tasks
 }

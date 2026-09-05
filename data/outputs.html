@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 
-<body id="page-config-outputs">
+<body id="page-outputs">
 
 <div class="layout">
 
@@ -16,11 +16,14 @@
 
     <div class="navTitle">Controller</div>
 
-    <a href="/">Main</a>
+    <a href="/">Overview</a>
+    <a href="/computer">Computer Control</a>
     <a href="/mobile">Mobile Control</a>
-    <a href="/config/inputs">Input Mapping</a>
-    <a href="/config/outputs">Output Mapping</a>
-        <a href="/battery">Battery</a>
+    <a href="/inputs">Input Mapping</a>
+    <a href="/mixes">Input Mixes</a>
+    <a href="/outputs">Output Mapping</a>
+    <a href="/battery">Battery</a>
+    <a href="/backup">Backup & Restore</a>
     <a href="/troubleshooting">Troubleshooting</a>
     <a href="/settings">Settings</a>
 
@@ -34,12 +37,12 @@
       <h1>Config: Outputs</h1>
       <p class="subtitle">Configure how channels map to hardware outputs</p>
       
-            <div class="status" id="status">Disconnected</div>
+      <div class="status" id="status">Disconnected</div>
 
-                  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px; align-items: center;">
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px; align-items: center;">
         <label for="profileSelect">Active Profile:</label>
-        <button id="loadOutputProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">Load</button>
         <select id="profileSelect" style="min-width: 150px;"></select>
+        <button id="loadOutputProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">Load</button>
         <button id="newProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">+ New</button>
         <button id="deleteProfileBtn" style="background: #ff4444; color: #fff; padding: 6px 12px; font-size: 14px; border:none; border-radius:4px; cursor:pointer;">Delete</button>
       </div>
@@ -48,7 +51,7 @@
         <!-- Output cards will be generated here -->
       </div>
 
-                        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
         <button id="downloadOutputProfileBtn" style="background: #444; color: #fff;">Download File</button>
         <button id="uploadOutputProfileBtn" style="background: #444; color: #fff;">Upload File</button>
       </div>
@@ -69,7 +72,7 @@
 <script src="/utils.js"></script>
 <script src="/websocket.js"></script>
 <script src="/controlMap.js"></script> <!-- Needed for channel count -->
-<script src="/page-config-outputs.js"></script>
+<script src="/page-outputs.js"></script>
 <script src="/app.js"></script>
 
 </body>

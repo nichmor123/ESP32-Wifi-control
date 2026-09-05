@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Backup & Restore</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body id="page-backup">
+
+<div class="layout">
+
+  <!-- Left Navigation -->
+  <aside class="nav">
+    <div class="navTitle">Controller</div>
+    <a href="/">Overview</a>
+    <a href="/computer">Computer Control</a>
+    <a href="/mobile">Mobile Control</a>
+    <a href="/inputs">Input Mapping</a>
+    <a href="/mixes">Input Mixes</a>
+    <a href="/outputs">Output Mapping</a>
+    <a href="/battery">Battery</a>
+    <a href="/backup" class="active">Backup & Restore</a>
+    <a href="/troubleshooting">Troubleshooting</a>
+    <a href="/settings">Settings</a>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="page">
+
+    <div class="card" style="max-width: 860px;">
+
+      <h1>System Backup & Restore</h1>
+      <p class="subtitle">Download or restore the entire configuration of your ESP32 controller in a single file package.</p>
+      
+      <div class="status" id="status">Disconnected</div>
+
+      <div class="sectionTitle">Download Backup</div>
+      <p style="text-align: left; opacity: 0.9; font-size: 14px; line-height: 1.5;">
+        Export all system configurations (Input Maps, Output Maps, Profiles Registry, Battery Setup, and WiFi/System Settings) into a single downloadable JSON backup file.
+      </p>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 15px;">
+        <button id="downloadBackupBtn">Download Full Backup (.json)</button>
+      </div>
+
+      <div class="sectionTitle" style="margin-top: 30px;">Restore Backup</div>
+      <p style="text-align: left; opacity: 0.9; font-size: 14px; line-height: 1.5;">
+        Upload a previously exported backup file to restore all system configurations onto this ESP32.
+      </p>
+
+      <div style="display:flex; flex-direction: column; align-items: center; gap:12px; margin-top: 15px;">
+        <input type="file" id="backupFileInput" accept=".json" style="display: none;">
+        <button id="selectBackupFileBtn" style="background: #2a2a2a; color: #fff;">Select Backup File...</button>
+        <div id="selectedFileName" style="font-size: 14px; opacity: 0.8;">No file selected</div>
+        <button id="restoreBackupBtn" style="background: #ffaa00; color: #000; font-weight: bold; margin-top: 8px;" disabled>Restore & Restart ESP32</button>
+      </div>
+
+      <div id="backupError" class="error-box" style="display: none;"></div>
+
+      <div class="log" id="debug" style="margin-top: 25px;"></div>
+
+    </div>
+
+  </main>
+
+</div>
+
+<script src="/utils.js"></script>
+<script src="/websocket.js"></script>
+<script src="/page-backup.js"></script>
+<script src="/app.js"></script>
+
+</body>
+</html>

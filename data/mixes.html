@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Config - Mixes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body id="page-mixes">
+
+<div class="layout">
+
+  <!-- Left Navigation -->
+  <aside class="nav">
+
+    <div class="navTitle">Controller</div>
+
+    <a href="/">Overview</a>
+    <a href="/computer">Computer Control</a>
+    <a href="/mobile">Mobile Control</a>
+    <a href="/inputs">Input Mapping</a>
+    <a href="/mixes">Input Mixes</a>
+    <a href="/outputs">Output Mapping</a>
+    <a href="/battery">Battery</a>
+    <a href="/backup">Backup & Restore</a>
+    <a href="/troubleshooting">Troubleshooting</a>
+    <a href="/settings">Settings</a>
+
+  </aside>
+
+  <!-- Main Page Content -->
+  <main class="page">
+
+    <div class="card" style="max-width: 860px;">
+
+      <h1>Config: Input Mixes</h1>
+      <p class="subtitle">
+        Create virtual inputs by mathematically combining sources. Mixes appear as new axes on the Input Mapping page.
+      </p>
+
+      <div class="status" id="gpStatus">No controller detected</div>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin: 10px 0;">
+        <button id="startBtn">Test Inputs</button>
+        <button id="stopBtn">Stop</button>
+      </div>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px; align-items: center;">
+        <label for="profileSelect">Active Profile:</label>
+        <select id="profileSelect" style="min-width: 150px;"></select>
+        <button id="loadProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">Load</button>
+        <button id="newProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">+ New</button>
+        <button id="deleteProfileBtn" style="background: #ff4444; color: #fff; padding: 6px 12px; font-size: 14px; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+      </div>
+
+      <div id="mixesGrid" class="mixes-grid"></div>
+      <div style="text-align: center; margin-top: 14px;"><button id="addMixBtn">+ Add Mix</button></div>
+
+      <div id="conflictError" class="error-box" style="display: none;"></div>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+        <button id="downloadProfileBtn" style="background: #444; color: #fff;">Download File</button>
+        <button id="uploadProfileBtn" style="background: #444; color: #fff;">Upload File</button>
+      </div>
+
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+        <button id="saveBtn">Save Mixes to ESP32</button>
+      </div>
+
+      <div class="log" id="debug"></div>
+
+    </div>
+
+  </main>
+
+</div>
+
+<script src="/utils.js"></script>
+<script src="/websocket.js"></script>
+<script src="/controlMap.js"></script>
+<script src="/gamepad.js"></script>
+<script src="/page-mixes.js"></script>
+<script src="/app.js"></script>
+
+</body>
+</html>

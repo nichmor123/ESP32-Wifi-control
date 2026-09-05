@@ -200,8 +200,63 @@ static void handleSaveProfilesConfig(AsyncWebSocketClient* client, JsonVariantCo
         }
     }
 
-    if (obj["restart"].is<bool>() && obj["restart"].as<bool>() == true) {
+        if (obj["restart"].is<bool>() && obj["restart"].as<bool>() == true) {
         delay(200);
+        ESP.restart();
+    }
+}
+
+static void handleRestoreBackup(AsyncWebSocketClient* client, JsonVariantConst data) {
+    if (!data.is<JsonObjectConst>()) {
+        client->text("{\"cmd\":\"restore_backup_err\",\"data\":{\"status\":\"bad_request\"}}");
+        return;
+    }
+    JsonObjectConst obj = data.as<JsonObjectConst>();
+
+    if (!obj["files"].is<JsonObjectConst>()) {
+        client->text("{\"cmd\":\"restore_backup_err\",\"data\":{\"status\":\"missing_files_object\"}}");
+        return;
+    }
+
+    JsonObjectConst filesMap = obj["files"].as<JsonObjectConst>();
+    size_t restoredCount = 0;
+
+    for (JsonPairConst kv : filesMap) {
+        String filePath = kv.key().c_str();
+        if (filePath.length() == 0) continue;
+        if (!filePath.startsWith("/")) {
+            filePath = "/" + filePath;
+        }
+
+        // Extract value as JsonVariantConst to handle both string and object/array representations
+        JsonVariantConst val = kv.value();
+        
+        File f = LittleFS.open(filePath.c_str(), "w");
+        if (f) {
+            if (val.is<const char*>()) {
+                f.print(val.as<const char*>());
+            } else {
+                serializeJson(val, f);
+            }
+            f.close();
+            restoredCount++;
+            Serial.printf("Restored file: %s (bytes written)\n", filePath.c_str());
+        } else {
+            Serial.printf("Failed to open file for restore: %s\n", filePath.c_str());
+        }
+    }
+
+    JsonDocument respDoc;
+    respDoc["cmd"] = "restore_backup_ok";
+    JsonObject respData = respDoc["data"].to<JsonObject>();
+    respData["status"] = "ok";
+    respData["restoredCount"] = restoredCount;
+    String respStr;
+    serializeJson(respDoc, respStr);
+    client->text(respStr.c_str());
+
+    if (obj["restart"].is<bool>() && obj["restart"].as<bool>() == true) {
+        delay(300);
         ESP.restart();
     }
 }
@@ -298,9 +353,14 @@ void RegisterProjectWsCommands(WsCommandServer& ws) {
         handleSaveWifiConfig(client, data);
     });
 
-    ws.on("save_profiles_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        ws.on("save_profiles_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
         (void)doc;
         handleSaveProfilesConfig(client, data);
+    });
+
+    ws.on("restore_backup", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        (void)doc;
+        handleRestoreBackup(client, data);
     });
 
     ws.on("get_heap", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {

@@ -2,10 +2,12 @@
 
 #include <Arduino.h>
 
+class StatusLedManager;
+
 class DeviceInitializer {
 public:
-    // This starts the scanning and LED tasks if the device has not been customized.
-    // It returns true if it determined it is the first boot (modified == 0) and handled the AP SSID suffix.
-    // Call this before wifi.beginAP().
-    static void initialize(String& ssidToModify, String& passwordToModify);
+    // Scans network and handles auto-numbering.
+    // Accepts a reference to StatusLedManager to set the flash pattern if unmodified.
+    // Returns the assigned auto-number if fresh/unmodified, or 0 if customized.
+    static int initialize(String& ssidToModify, String& passwordToModify, StatusLedManager* statusLed = nullptr);
 };

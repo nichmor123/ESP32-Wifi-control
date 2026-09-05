@@ -66,24 +66,36 @@ function isSettingsPage() {
   return document.body.id === 'page-settings';
 }
 
-function isConfigInputsPage() {
-  return document.body.id === 'page-config-inputs';
+function isInputsPage() {
+  return document.body.id === 'page-inputs' || document.body.id === 'page-config-inputs';
+}
+
+function isMixesPage() {
+  return document.body.id === 'page-mixes' || document.body.id === 'page-config-mixes';
 }
 
 function isMobilePage() {
   return document.body.id === 'page-mobile';
 }
 
-function isOutputConfigPage() {
-  return document.body.id === 'page-config-outputs';
+function isOutputsPage() {
+  return document.body.id === 'page-outputs' || document.body.id === 'page-config-outputs';
 }
 
 function isBatteryPage() {
     return document.body.id === 'page-battery';
 }
 
+function isBackupPage() {
+  return document.body.id === 'page-backup';
+}
+
 function isTroubleshootingPage() {
   return document.body.id === 'page-troubleshooting';
+}
+
+function isComputerPage() {
+  return document.body.id === 'page-computer';
 }
 
 function buildChannelOptions(selectedChannel, includeNone) {

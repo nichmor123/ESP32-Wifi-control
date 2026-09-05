@@ -4,6 +4,64 @@ const buttonUiRefs = {}; // sourceId -> { pillEl, textEl, selectEl }
 
 const mobileChannelGridEl = document.getElementById("mobileChannelGrid");
 const mobileButtonGridEl = document.getElementById("mobileButtonGrid");
+const keyboardButtonGridEl = document.getElementById("keyboardButtonGrid");
+
+let gpRunning = false;
+let gpRaf = 0;
+
+function rerenderAll() {
+  deriveRuntimeFromControlMap();
+  buildUIFromControlMap();
+}
+
+function updateAxisUi(id, v) {
+  const ref = axisUiRefs[id];
+  if (!ref) return;
+  const num = Number(v) || 0;
+  ref.valueEl.textContent = num.toFixed(3);
+  const pct = rangeToPercent(num, ref.rangeMin ?? -1, ref.rangeMax ?? 1);
+  ref.barFillEl.style.width = `${pct.toFixed(1)}%`;
+}
+
+function updateButtonUi(id, pressed) {
+  const ref = buttonUiRefs[id];
+  if (!ref) return;
+  if (pressed) {
+    ref.pillEl.classList.add("pillOn");
+    ref.textEl.textContent = "ON";
+  } else {
+    ref.pillEl.classList.remove("pillOn");
+    ref.textEl.textContent = "OFF";
+  }
+}
+
+function renderGamepadFrame() {
+  if (!gpRunning) return;
+
+  const gp = getFirstGamepad();
+  if (gp) {
+    setStatus(gpStatusEl, `Controller: ${gp.id}`, "#00ff00");
+  } else {
+    setStatus(gpStatusEl, "Keyboard & Controller Listener Active", "#00ff00");
+  }
+
+  const state = gp ? readGamepadStateF310(gp) : { analog: {}, digital: {} };
+  const kbState = readKeyboardState();
+
+  for (const id in state.analog) {
+    updateAxisUi(id, state.analog[id]);
+  }
+
+  for (const id in state.digital) {
+    updateButtonUi(id, state.digital[id]);
+  }
+
+  for (const id in kbState) {
+    updateButtonUi(id, kbState[id]);
+  }
+
+  gpRaf = requestAnimationFrame(renderGamepadFrame);
+}
 
 // Helper to check for channel mapping conflicts
 function validateChannelMappings() {
@@ -21,34 +79,32 @@ function validateChannelMappings() {
   }
 
   const conflicts = [];
-  for (const [ch, sources] of channelToSources.entries()) {
+    for (const [ch, sources] of channelToSources.entries()) {
     // If there is more than 1 source mapped to a channel, we need to check if they are all from the same hardware domain
     if (sources.length > 1) {
       // Group sources by their hardware domain.
-      // Gamepad inputs don't start with 'm_'
+      // Gamepad inputs don't start with 'm_' or 'k_'
       // Mobile inputs start with 'm_'
-      const hasGamepad = sources.some(s => !s.id.startsWith('m_') && !s.id.startsWith('mix_'));
-      const hasMobile = sources.some(s => s.id.startsWith('m_'));
-      
-      // If a channel has BOTH a physical gamepad input AND a virtual mobile input mapped to it,
-      // it is considered valid, because the user will only be using one device at a time.
-      // However, if there are multiple mobile inputs, or multiple gamepad inputs mapped to it, it is a conflict.
+      // Keyboard inputs start with 'k_'
       
       let gamepadCount = 0;
       let mobileCount = 0;
+      let keyboardCount = 0;
       let mixCount = 0;
       
       for (const s of sources) {
           if (s.id.startsWith('mix_')) mixCount++;
           else if (s.id.startsWith('m_')) mobileCount++;
+          else if (s.id.startsWith('k_')) keyboardCount++;
           else gamepadCount++;
       }
       
       // It is a conflict if:
       // 1. There are multiple gamepad inputs mapped directly to it
       // 2. There are multiple mobile inputs mapped directly to it
-      // 3. There are mixes involved alongside direct inputs
-      if (gamepadCount > 1 || mobileCount > 1 || mixCount > 0) {
+      // 3. There are multiple keyboard inputs mapped directly to it
+      // 4. There are mixes involved alongside direct inputs
+      if (gamepadCount > 1 || mobileCount > 1 || keyboardCount > 1 || mixCount > 0) {
         conflicts.push({ channel: ch, sources });
       }
     }
@@ -83,12 +139,13 @@ function buildUIFromControlMap() {
   if (!channelGridEl) return;
 
   // Clear all grids
-  [channelGridEl, buttonGridEl, mobileChannelGridEl, mobileButtonGridEl].forEach(el => {
+  [channelGridEl, buttonGridEl, keyboardButtonGridEl, mobileChannelGridEl, mobileButtonGridEl].forEach(el => {
     if (el) el.innerHTML = "";
   });
 
-  const gamepadAxes = AXES.filter(s => !s.id.startsWith('m_') && !s.id.startsWith('mix_'));
-  const gamepadButtons = BUTTONS.filter(s => !s.id.startsWith('m_'));
+  const gamepadAxes = AXES.filter(s => !s.id.startsWith('m_') && !s.id.startsWith('k_') && !s.id.startsWith('mix_'));
+  const gamepadButtons = BUTTONS.filter(s => !s.id.startsWith('m_') && !s.id.startsWith('k_'));
+  const keyboardButtons = BUTTONS.filter(s => s.id.startsWith('k_'));
   const mobileAxes = AXES.filter(s => s.id.startsWith('m_') && !s.id.startsWith('mix_'));
   const mobileButtons = BUTTONS.filter(s => s.id.startsWith('m_'));
 
@@ -122,7 +179,7 @@ function buildUIFromControlMap() {
     const barFillEl = card.querySelector(`#abar_${src.id}`);
     const selectEl = card.querySelector(`#asel_${src.id}`);
 
-        selectEl.addEventListener("change", () => {
+    selectEl.addEventListener("change", () => {
       const raw = selectEl.value;
       if (raw === "") {
         sourceToChannel.delete(src.id);
@@ -193,275 +250,20 @@ function buildUIFromControlMap() {
       buttonUiRefs[src.id] = { pillEl, textEl, selectEl };
   };
 
-  // Populate Gamepad Tab
+    // Populate Gamepad Tab
   gamepadAxes.forEach(src => buildAxisCard(src, channelGridEl));
   gamepadButtons.forEach(src => buildButtonCard(src, buttonGridEl));
+  // Populate Keyboard Tab
+  keyboardButtons.forEach(src => buildButtonCard(src, keyboardButtonGridEl));
   // Populate Mobile Tab
   mobileAxes.forEach(src => buildAxisCard(src, mobileChannelGridEl));
   mobileButtons.forEach(src => buildButtonCard(src, mobileButtonGridEl));
-
-  if (saveBtn) {
-    saveBtn.onclick = () => {
-      collectMixesData();
-
-      if (!validateChannelMappings()) {
-        appendLog(debugEl, "Save blocked: Multiple inputs are assigned to the same channel.");
-        return;
-      }
-
-      const list = [];
-
-      for (const src of SOURCES) {
-        const ch = sourceToChannel.get(src.id);
-        if (typeof ch !== "number") continue;
-
-        const xform = sourceToXform.get(src.id);
-        const entry = { source: src.id, ch };
-        if (xform) entry.xform = xform;
-        list.push(entry);
-      }
-
-      list.sort((a, b) => a.ch - b.ch || a.source.localeCompare(b.source));
-      controlMap.inputs.map_to_channels = list;
-
-      const msg = {
-        cmd: "save_input_mapping",
-        data: { controlMapText: JSON.stringify(controlMap, null, 2) },
-      };
-
-      if (!wsSendJson(msg)) {
-        appendLog(debugEl, "Save failed: WebSocket not connected");
-        return;
-      }
-
-      appendLog(debugEl, "TX: save_input_mapping (controlMapText)");
-    };
-  }
 }
 
 // ---------- Mixes UI ----------
 
-function buildRawSourceOptions(selectedSourceId) {
-  const rawSources = (controlMap?.inputs?.sources || []);
-  return rawSources.map(src => {
-    const sel = src.id === selectedSourceId ? 'selected' : '';
-    return `<option value="${src.id}" ${sel}>${src.label || src.id}</option>`;
-  }).join('');
-}
-
-function buildMixesUI() {
-  const mixesGrid = document.getElementById('mixesGrid');
-  if (!mixesGrid) return;
-
-  mixesGrid.innerHTML = '';
-  const mixes = controlMap?.inputs?.mixes || [];
-
-  mixes.forEach(mix => {
-    const card = document.createElement('div');
-    card.className = 'mix-card';
-    card.dataset.id = mix.id;
-
-    const selectedChannel = sourceToChannel.get(mix.id) ?? null;
-    const xf = sourceToXform.get(mix.id) || {};
-    const isInverted = xf.invert || false;
-    const deadband = xf.deadband || 0.0;
-    const expo = xf.expo || 0.0;
-
-    const positiveInputsHtml = (mix.positive || []).map(srcId => `
-      <div class="mix-input-row">
-        <select class="mix-source-select" data-group="positive">${buildRawSourceOptions(srcId)}</select>
-        <button class="remove-input-btn">&minus;</button>
-      </div>
-    `).join('');
-
-    const negativeInputsHtml = (mix.negative || []).map(srcId => `
-      <div class="mix-input-row">
-        <select class="mix-source-select" data-group="negative">${buildRawSourceOptions(srcId)}</select>
-        <button class="remove-input-btn">&minus;</button>
-      </div>
-    `).join('');
-
-    card.innerHTML = `
-      <div class="mix-card-header">
-        <input type="text" class="mix-label-input" value="${mix.label || mix.id}" placeholder="Mix Name">
-        <button class="remove-btn">&times;</button>
-      </div>
-      <div class="mix-card-body">
-        <div class="mix-group">
-          <div class="mix-group-title">Positive Inputs (+)</div>
-          ${positiveInputsHtml}
-          <button class="add-input-btn" data-group="positive">+ Add</button>
-        </div>
-        <span style="font-size: 24px; font-weight: bold;">&minus;</span>
-        <div class="mix-group">
-          <div class="mix-group-title">Negative Inputs (-)</div>
-          ${negativeInputsHtml}
-          <button class="add-input-btn" data-group="negative">+ Add</button>
-        </div>
-      </div>
-      <div class="mix-card-footer">
-        <label>Map to Channel:</label>
-        <select class="mix-channel-select">${buildChannelOptions(selectedChannel, true)}</select>
-        <div class="invert-control">
-            <input type="checkbox" id="invert_${mix.id}" class="mix-invert-cb" ${isInverted ? 'checked' : ''}>
-            <label for="invert_${mix.id}">Invert</label>
-        </div>
-        <div class="xform-control">
-            <label for="deadband_${mix.id}">Deadband:</label>
-            <input type="number" id="deadband_${mix.id}" class="mix-deadband-input" value="${deadband.toFixed(2)}" min="0" max="1" step="0.01">
-            <label for="expo_${mix.id}">Expo:</label>
-            <input type="number" id="expo_${mix.id}" class="mix-expo-input" value="${expo.toFixed(2)}" min="0" max="1" step="0.01">
-        </div>
-      </div>
-    `;
-    mixesGrid.appendChild(card);
-
-    // Event Listeners
-    card.querySelector('.remove-btn').addEventListener('click', () => {
-      collectMixesData();
-      controlMap.inputs.mixes = controlMap.inputs.mixes.filter(m => m.id !== mix.id);
-      // Also remove any channel mappings for this mix
-      controlMap.inputs.map_to_channels = controlMap.inputs.map_to_channels.filter(m => m.source !== mix.id);
-      rerenderAll();
-    });
-
-    card.querySelectorAll('.add-input-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const group = btn.dataset.group;
-        if (!mix[group]) mix[group] = [];
-        mix[group].push((controlMap?.inputs?.sources[0]?.id) || ''); // Add first raw source as default
-        buildMixesUI(); // Just re-render mixes
-      });
-    });
-
-        card.querySelectorAll('.mix-group').forEach(groupEl => {
-      const group = groupEl.querySelector('.add-input-btn').dataset.group;
-      groupEl.querySelectorAll('.remove-input-btn').forEach((btn, index) => {
-        btn.addEventListener('click', () => {
-          mix[group].splice(index, 1);
-          buildMixesUI();
-        });
-      });
-    });
-
-    const getOrCreateXform = (mixId) => {
-        let xf = sourceToXform.get(mixId);
-        if (!xf) {
-            // If no xform exists, create a default one
-            xf = defaultXformForKind('axis');
-            sourceToXform.set(mixId, xf);
-        }
-        return xf;
-    };
-
-        // Channel mapping for the mix
-    card.querySelector('.mix-channel-select').addEventListener('change', (e) => {
-        const raw = e.target.value;
-        if (raw === "") {
-            sourceToChannel.delete(mix.id);
-        } else {
-            sourceToChannel.set(mix.id, parseInt(raw, 10));
-        }
-        validateChannelMappings();
-    });
-
-    // Invert checkbox for the mix
-    card.querySelector('.mix-invert-cb').addEventListener('change', (e) => {
-        const xf = getOrCreateXform(mix.id);
-        xf.invert = e.target.checked;
-    });
-
-    // Deadband and Expo inputs
-    card.querySelector('.mix-deadband-input').addEventListener('input', (e) => {
-        const xf = getOrCreateXform(mix.id);
-        xf.deadband = parseFloat(e.target.value) || 0;
-    });
-    card.querySelector('.mix-expo-input').addEventListener('input', (e) => {
-        const xf = getOrCreateXform(mix.id);
-        xf.expo = parseFloat(e.target.value) || 0;
-    });
-  });
-}
-
-function collectMixesData() {
-    const newMixes = [];
-    document.querySelectorAll('.mix-card').forEach(card => {
-        const id = card.dataset.id;
-        const label = card.querySelector('.mix-label-input').value;
-        const positive = Array.from(card.querySelectorAll('.mix-source-select[data-group="positive"]')).map(sel => sel.value);
-        const negative = Array.from(card.querySelectorAll('.mix-source-select[data-group="negative"]')).map(sel => sel.value);
-        newMixes.push({ id, label, positive, negative });
-    });
-    controlMap.inputs.mixes = newMixes;
-}
-
-function rerenderAll() {
-    deriveRuntimeFromControlMap();
-    buildUIFromControlMap();
-    buildMixesUI();
-}
-
-// gamepad live view (config page)
-let gpRunning = false;
-let gpRaf = 0;
-
-function renderGamepadFrame() {
-  if (!gpRunning) return;
-
-  const gp = getFirstGamepad();
-  if (!gp) {
-    setStatus(gpStatusEl, "No controller detected", "#ff4444");
-    gpRaf = requestAnimationFrame(renderGamepadFrame);
-    return;
-  }
-
-  setStatus(gpStatusEl, `Controller: ${gp.id}`, "#00ff00");
-
-  const state = readGamepadStateF310(gp);
-
-  // Only update gamepad sources
-  for (const src of AXES.filter(s => !s.id.startsWith('m_'))) {
-    const ref = axisUiRefs[src.id];
-    if (!ref) continue;
-
-    const v = src.id in state.analog ? state.analog[src.id] : 0;
-    ref.valueEl.textContent = v.toFixed(3);
-    const pct = rangeToPercent(v, ref.rangeMin, ref.rangeMax);
-    ref.barFillEl.style.width = `${pct.toFixed(1)}%`;
-  }
-
-  for (const src of BUTTONS.filter(s => !s.id.startsWith('m_'))) {
-    const ref = buttonUiRefs[src.id];
-    if (!ref) continue;
-
-    const pressed = !!state.digital[src.id];
-    ref.textEl.textContent = pressed ? "ON" : "OFF";
-    if (pressed) ref.pillEl.classList.add("pillOn");
-    else ref.pillEl.classList.remove("pillOn");
-  }
-
-  gpRaf = requestAnimationFrame(renderGamepadFrame);
-}
-
-function initConfigInputsPage() {
+function initInputsPage() {
   buildUIFromControlMap();
-  buildMixesUI();
-
-  const addMixBtn = document.getElementById('addMixBtn');
-  if (addMixBtn) {
-    addMixBtn.onclick = () => {
-      collectMixesData();
-      if (!controlMap.inputs.mixes) controlMap.inputs.mixes = [];
-      const newMix = {
-        id: `mix_${Date.now()}`,
-        label: `Mix ${controlMap.inputs.mixes.length + 1}`,
-        positive: [],
-        negative: []
-      };
-      controlMap.inputs.mixes.push(newMix);
-      rerenderAll();
-    };
-  }
 
   // Populate profile dropdown
   const profileSelect = document.getElementById("profileSelect");
@@ -566,10 +368,9 @@ function initConfigInputsPage() {
       };
   }
 
-  const downloadProfileBtn = document.getElementById('downloadProfileBtn');
+    const downloadProfileBtn = document.getElementById('downloadProfileBtn');
   if (downloadProfileBtn) {
     downloadProfileBtn.onclick = () => {
-      collectMixesData();
       const list = [];
       for (const src of SOURCES) {
         const ch = sourceToChannel.get(src.id);
@@ -640,30 +441,15 @@ function initConfigInputsPage() {
     });
   });
 
-    // Override save button to include mixes
-  if (saveBtn) {
+        // Override save button to include mixes
+    if (saveBtn) {
     saveBtn.onclick = () => {
-      collectMixesData();
-
       if (!validateChannelMappings()) {
         appendLog(debugEl, "Save blocked: Multiple inputs are assigned to the same channel.");
         return;
       }
 
-      const list = [];
-
-      for (const src of SOURCES) {
-        const ch = sourceToChannel.get(src.id);
-        if (typeof ch !== "number") continue;
-
-        const xform = sourceToXform.get(src.id);
-        const entry = { source: src.id, ch };
-        if (xform) entry.xform = xform;
-        list.push(entry);
-      }
-
-      list.sort((a, b) => a.ch - b.ch || a.source.localeCompare(b.source));
-      controlMap.inputs.map_to_channels = list;
+      updateControlMapToChannels();
 
       const profileSelect = document.getElementById("profileSelect");
       const activeFile = profileSelect ? profilesConfig.inputs[profileSelect.value] : "/controlMap.json";

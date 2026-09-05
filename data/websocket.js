@@ -41,7 +41,7 @@ function wsSendChannelsBinary(chFloatArray) {
 
 // ---------- websocket connection ----------
 function shouldUseWebSocketOnThisPage() {
-  return !!(pingBtn || sendToggleBtn || isConfigInputsPage() || saveBtn || isMobilePage() || isOutputConfigPage() || isBatteryPage() || isTroubleshootingPage() || isSettingsPage());
+  return !!(pingBtn || sendToggleBtn || isInputsPage() || isMixesPage() || saveBtn || isMobilePage() || isOutputsPage() || isBatteryPage() || isBackupPage() || isTroubleshootingPage() || isSettingsPage());
 }
 
 function connectWebSocket() {

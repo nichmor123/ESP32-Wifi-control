@@ -11,16 +11,19 @@
 
 <div class="layout">
 
-    <!-- Left Navigation -->
+        <!-- Left Navigation -->
     <aside class="nav">
 
         <div class="navTitle">Controller</div>
 
-        <a href="/">Main</a>
+        <a href="/" class="active">Overview</a>
+        <a href="/computer">Computer Control</a>
         <a href="/mobile">Mobile Control</a>
-        <a href="/config/inputs">Input Mapping</a>
-        <a href="/config/outputs">Output Mapping</a>
+        <a href="/inputs">Input Mapping</a>
+        <a href="/mixes">Input Mixes</a>
+        <a href="/outputs">Output Mapping</a>
         <a href="/battery">Battery</a>
+        <a href="/backup">Backup & Restore</a>
         <a href="/troubleshooting">Troubleshooting</a>
         <a href="/settings">Settings</a>
 
@@ -29,27 +32,81 @@
     <!-- Main Page Content -->
     <main class="page">
 
-        <div class="card">
+        <div class="card" style="max-width: 860px;">
 
-            <h1>Universal Controller</h1>
-            <p class="subtitle">Under Construction</p>
+                        <h1>Universal ESP32 RC Controller</h1>
+            <p class="subtitle">A customizable, Web-configured wireless control system for RC vehicles, robotics, and hardware projects.</p>
 
-            <div class="status" id="status">Disconnected</div>
-
-            <div class="log" id="log"></div>
-
-            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:14px;">
-                <button id="sendToggleBtn">Start Sending</button>
-            </div>
-
-            <div id="battery-indicator" class="battery-indicator" style="display: none;">
+            <div id="battery-indicator" class="battery-indicator" style="display: none; margin-top: 15px;">
                 <div class="sectionTitle">Battery Status</div>
                 <div class="battery-bar-outer"><div class="battery-bar-fill green" style="width: 100%;"></div></div>
                 <div class="battery-text">-- V (--%)</div>
             </div>
 
-            <div class="sectionTitle" style="margin-top:18px;">Channels Out</div>
-            <div class="grid" id="txChannelGrid"></div>
+            <div style="text-align: left; margin-top: 24px; line-height: 1.6;">
+
+                                <div class="sectionTitle">System Overview & Architecture</div>
+                <p>
+                    This controller transforms an ESP32 into a flexible multi-channel radio receiver/controller that accepts real-time commands over WiFi and converts them into physical hardware output signals (PWM, Servos, ESCs, GPIOs, etc.).
+                </p>
+
+                <div class="sectionTitle" style="margin-top: 20px;">Status LED Indicator Guide</div>
+                <p>The onboard status LED provides clear visual feedback regarding system state:</p>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li style="margin-bottom: 6px;">
+                        <strong>WiFi Running (No Devices Connected):</strong> Long double-pulse pattern (1.2s ON, 0.3s OFF, 1.2s ON, 2.0s OFF).
+                    </li>
+                    <li style="margin-bottom: 6px;">
+                        <strong>Device Connected (WebSocket Active):</strong> Heartbeat pulse (0.5s ON, 0.5s OFF).
+                    </li>
+                    <li style="margin-bottom: 6px;">
+                        <strong>Active Control Stream:</strong> Fast double-strobe pulse (80ms ON, 80ms OFF, 80ms ON, 600ms OFF).
+                    </li>
+                    <li style="margin-bottom: 6px;">
+                        <strong>Auto-Numbering (Unmodified Fresh Board):</strong> Flashes N times (e.g., 1 flash, pause, 1 flash, long pause for board <code>-1</code>).
+                    </li>
+                </ul>
+
+                <div class="sectionTitle" style="margin-top: 20px;">Control & Operation Pages</div>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li style="margin-bottom: 8px;">
+                        <strong><a href="/computer" style="color: #00ffcc;">Computer Control</a>:</strong> Direct control interface when running from a PC. Connect gamepads (Xbox/F310) or use keyboard shortcuts to send real-time channel streams via WebSocket.
+                    </li>
+                    <li style="margin-bottom: 8px;">
+                        <strong><a href="/mobile" style="color: #00ffcc;">Mobile Control</a>:</strong> Touch-optimized interface featuring virtual dual joysticks and customizable action buttons for mobile phones or tablets.
+                    </li>
+                </ul>
+
+                                <div class="sectionTitle" style="margin-top: 20px;">Configuration Pages</div>
+                                <ul style="margin-left: 20px; margin-top: 8px;">
+                                    <li style="margin-bottom: 8px;">
+                                        <strong><a href="/inputs" style="color: #00ffcc;">Input Mapping</a>:</strong> Assign physical gamepad axes/buttons, keyboard keys, or virtual mobile controls directly to any of the 20 control channels.
+                                    </li>
+                                    <li style="margin-bottom: 8px;">
+                                        <strong><a href="/mixes" style="color: #00ffcc;">Input Mixes</a>:</strong> Create custom virtual channel mixes combining positive and negative inputs, with configurable deadband, expo, and invert settings on each mix.
+                                    </li>
+                                    <li style="margin-bottom: 8px;">
+                                        <strong><a href="/outputs" style="color: #00ffcc;">Output Mapping</a>:</strong> Map control channels to physical ESP32 GPIO pins. Supports ESC (Brushed) and Servo output types with customizable input and output ranges.
+                                    </li>
+                                </ul>
+
+                <div class="sectionTitle" style="margin-top: 20px;">Monitoring & System Setup</div>
+                <ul style="margin-left: 20px; margin-top: 8px;">
+                    <li style="margin-bottom: 8px;">
+                        <strong><a href="/battery" style="color: #00ffcc;">Battery Monitor</a>:</strong> Set up voltage divider resistor ratios, battery chemistry (LiPo, LiFePO4, Li-ion), cell count, and monitor real-time telemetry voltage.
+                    </li>
+                    <li style="margin-bottom: 8px;">
+                        <strong><a href="/backup" style="color: #00ffcc;">Backup & Restore</a>:</strong> Save and export the entire ESP32 configuration package or restore custom configuration backups.
+                    </li>
+                    <li style="margin-bottom: 8px;">
+                        <strong><a href="/troubleshooting" style="color: #00ffcc;">Troubleshooting</a>:</strong> Perform ping tests, inspect free system memory (RAM heap), view raw connection logs, or trigger ESP32 system reboots.
+                    </li>
+                    <li style="margin-bottom: 8px;">
+                        <strong><a href="/settings" style="color: #00ffcc;">Settings</a>:</strong> Configure WiFi Access Point credentials, station mode connections, static IP settings, and system hostname (mDNS).
+                    </li>
+                </ul>
+
+            </div>
 
         </div>
 
@@ -59,8 +116,6 @@
 
 <script src="/utils.js"></script>
 <script src="/websocket.js"></script>
-<script src="/controlMap.js"></script>
-<script src="/gamepad.js"></script>
 <script src="/page-index.js"></script>
 <script src="/app.js"></script>
 

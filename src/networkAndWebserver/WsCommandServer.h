@@ -14,8 +14,9 @@ public:
 
     explicit WsCommandServer(const char* wsPath);
 
-    void attachTo(AsyncWebServer& server);
+        void attachTo(AsyncWebServer& server);
     void begin();
+    void cleanupClients();
 
     bool on(const char* cmd, Handler handler);
 
@@ -24,6 +25,7 @@ public:
 
     void sendText(AsyncWebSocketClient* client, const char* text);
     void broadcastText(const char* text);
+    size_t getClientCount() const { return _ws.count(); }
 
 private:
     static constexpr size_t MAX_COMMANDS = 24;

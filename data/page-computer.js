@@ -1,4 +1,4 @@
-// ---------- index page TX cards ----------
+// ---------- computer page TX cards and sending ----------
 const txUiRefs = {}; // chIndex -> { valueEl, barFillEl }
 
 function buildTxChannelCards() {
@@ -63,7 +63,7 @@ function updateSendButtonUi() {
   sendToggleBtn.textContent = sendingEnabled ? "Stop Sending" : "Start Sending";
 }
 
-// ---------- send loop (index.html) ----------
+// ---------- send loop (computer.html) ----------
 let sendingEnabled = false;
 let sendTimer = 0;
 
@@ -110,7 +110,7 @@ function startSending() {
       return;
     }
 
-        const gp = getFirstGamepad();
+    const gp = getFirstGamepad();
     const state = gp ? readGamepadStateF310(gp) : { analog: {}, digital: {} };
     const ch = computeChannelsFromState(state).map(round3);
 
@@ -129,6 +129,24 @@ function startSending() {
   }, SEND_PERIOD_MS);
 }
 
-function initIndexPage() {
-  // Index landing page initialization logic if needed
+function initComputerPage() {
+  buildTxChannelCards();
+  updateSendButtonUi();
+
+  if (sendToggleBtn) {
+    sendToggleBtn.onclick = () => {
+      if (sendingEnabled) stopSending("button");
+      else startSending();
+    };
+  }
+
+  window.addEventListener("keydown", (e) => {
+    const tag = e.target?.tagName.toLowerCase() ?? "";
+    if (["input", "textarea", "select"].includes(tag)) return;
+    if (e.code === "Space") {
+      stopSending("spacebar");
+      sendNeutralOnce();
+      e.preventDefault();
+    }
+  });
 }

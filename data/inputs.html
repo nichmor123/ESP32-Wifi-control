@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 
-<body id="page-config-inputs">
+<body id="page-inputs">
 
 <div class="layout">
 
@@ -16,11 +16,14 @@
 
     <div class="navTitle">Controller</div>
 
-    <a href="/">Main</a>
+    <a href="/">Overview</a>
+    <a href="/computer">Computer Control</a>
     <a href="/mobile">Mobile Control</a>
-    <a href="/config/inputs">Input Mapping</a>
-    <a href="/config/outputs">Output Mapping</a>
-        <a href="/battery">Battery</a>
+    <a href="/inputs">Input Mapping</a>
+    <a href="/mixes">Input Mixes</a>
+    <a href="/outputs">Output Mapping</a>
+    <a href="/battery">Battery</a>
+    <a href="/backup">Backup & Restore</a>
     <a href="/troubleshooting">Troubleshooting</a>
     <a href="/settings">Settings</a>
 
@@ -43,18 +46,19 @@
         <button id="stopBtn">Stop</button>
       </div>
 
-                  <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px; align-items: center;">
+                        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px; align-items: center;">
         <label for="profileSelect">Active Profile:</label>
-        <button id="loadProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">Load</button>
         <select id="profileSelect" style="min-width: 150px;"></select>
+        <button id="loadProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">Load</button>
         <button id="newProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">+ New</button>
         <button id="deleteProfileBtn" style="background: #ff4444; color: #fff; padding: 6px 12px; font-size: 14px; border:none; border-radius:4px; cursor:pointer;">Delete</button>
       </div>
 
-      <!-- Tabs -->
+            <!-- Tabs -->
       <div class="tab-container">
         <div class="tab-bar">
           <button class="tab-button active" data-tab="gamepad-tab">Gamepad</button>
+          <button class="tab-button" data-tab="keyboard-tab">Keyboard</button>
           <button class="tab-button" data-tab="mobile-tab">Mobile</button>
         </div>
         <div class="tab-content">
@@ -63,6 +67,9 @@
             <div class="sectionTitle">Buttons</div>
             <div class="grid" id="buttonGrid"></div>
           </div>
+          <div id="keyboard-tab" class="tab-pane">
+            <div class="grid" id="keyboardButtonGrid"></div>
+          </div>
           <div id="mobile-tab" class="tab-pane">
             <div class="grid" id="mobileChannelGrid"></div>
             <div class="sectionTitle">Buttons</div>
@@ -70,13 +77,6 @@
           </div>
         </div>
       </div>
-
-      <div class="sectionTitle">Mixes</div>
-      <p class="subtitle" style="text-align: left; margin-top: 4px;">
-        Create virtual inputs by combining sources. Mixes appear as new axes in the tabs above.
-      </p>
-      <div id="mixesGrid" class="mixes-grid"></div>
-      <div style="text-align: center; margin-top: 14px;"><button id="addMixBtn">+ Add Mix</button></div>
 
             <div id="conflictError" class="error-box" style="display: none;"></div>
 
@@ -96,6 +96,7 @@
         <ul style="margin: 6px 0 0 18px;">
           <li>F310 in <b>X</b> mode uses the standard Gamepad mapping.</li>
           <li>Bar values update live; dropdowns are your channel assignment UI.</li>
+          <li><b>Mixes</b> can be created on the <a href="/mixes" style="color: #00ffcc;">Input Mixes page</a>.</li>
         </ul>
       </div>
 
@@ -109,7 +110,7 @@
 <script src="/websocket.js"></script>
 <script src="/controlMap.js"></script>
 <script src="/gamepad.js"></script>
-<script src="/page-config-inputs.js"></script>
+<script src="/page-inputs.js"></script>
 <script src="/app.js"></script>
 
 </body>

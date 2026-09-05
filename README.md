@@ -34,9 +34,12 @@ The system is highly configurable, with a dedicated web page for mapping gamepad
     - Define input-to-output scaling (e.g., map a channel's `-1` to `1` range to a servo's `0` to `180` degree range).
 - **Battery Monitoring:** Configure and monitor battery voltage with a dedicated setup page and status indicators on control pages.
 - **Troubleshooting Page:** Dedicated page with diagnostic tools (ping, heap, remote restart).
+- **Serial Command Interface:** Full serial CLI to inspect system status, set WiFi configurations (SSID, password, hostname, static IP) on the fly, and restart the device over USB/Serial.
 - **Real-Time Control:** Low-latency control data is sent using an efficient binary WebSocket protocol.
 - **Browser-Based Gamepad Support:** Uses the standard web Gamepad API to read controller inputs.
 - **Persistent Configuration:** All input, output, battery, and Wi-Fi settings are saved to JSON files (`controlMap.json`, `outputMap.json`, `battery.json`, `wifi.json`) on the ESP32's `LittleFS` filesystem.
+- **Modular LED Status Signaling:** Low-level `LedHandler` and domain-level `StatusLedManager` provide clean visual status signals for auto-numbering, WiFi status, connected clients, and active real-time control streams.
+- **Modular Network & Webserver Stack:** Dedicated `NetworkManager` handles WiFi AP/STA modes, mDNS setup, web routes, and WebSocket lifecycle management cleanly separated from `main.cpp`.
 - **Auto-Initialization for Fleets:** Deploying multiple fresh boards at once will cause them to automatically scan the local airspace and assign themselves unique network numbers (`ESP32Controller-1`, `-2`, etc.), complete with visual LED flash codes.
 - **Built-in Failsafe:** The ESP32 code includes a timeout to detect connection loss and can trigger a failsafe state (e.g., stop motors).
 - **Modular Codebase:** Both the C++ firmware and the frontend JavaScript are broken into logical, maintainable modules.
@@ -60,7 +63,7 @@ The HTML, CSS, and JavaScript files run in the client's web browser.
 
 1.  **Connection:** The JavaScript connects to the ESP32's WebSocket server.
 2.  **Control Pages (`/` and `/mobile`):** These pages read either a physical gamepad or virtual joysticks, apply all configured mixes and transformations from `controlMap.json`, and stream the final channel values to the ESP32.
-3.  **Configuration Pages (`/config/inputs`, `/config/outputs`, `/battery`):** These provide UIs to modify the system's behavior. When you save, the new configuration is sent to the ESP32, which overwrites the corresponding JSON file on its filesystem and restarts to apply the changes.
+3.  **Configuration Pages (`/inputs`, `/mixes`, `/outputs`, `/battery`):** These provide UIs to modify the system's behavior. When you save, the new configuration is sent to the ESP32, which overwrites the corresponding JSON file on its filesystem and restarts to apply the changes.
 
 ## Detailed Setup and Configuration
 
@@ -74,11 +77,26 @@ Navigate to `http://192.168.4.1/settings` in your browser. This page allows you 
 2. **Password:** Enter a password (must be at least 8 characters) or leave it blank to create an open network.
 3. **Save & Restart:** Once you hit save, the new credentials will be written to `wifi.json` and the ESP32 will instantly reboot. You will need to reconnect to the new Wi-Fi network.
 
-> **Note on Multiple Controllers:** If you deploy multiple fresh ESP32s at the same time, their built-in `DeviceInitializer` will automatically scan the area and assign each a unique number (`ESP32Controller-1`, `ESP32Controller-2`, etc.) so they don't conflict out of the box! Their onboard LED will flash to visually tell you which board is which. Once you configure them via the Settings page, this auto-numbering is disabled.
+> **Note on Multiple Controllers & LED Status Signals:** 
+> - **Auto-Numbering (Unmodified Fresh Board):** Flashes $N$ times (e.g. 1 flash, pause, 1 flash, long pause for board `-1`).
+> - **WiFi Running / Idle (No Clients Connected):** Long double-pulse (`ON 1200ms`, `OFF 300ms`, `ON 1200ms`, `OFF 2000ms`).
+> - **Device Connected (Web Client Connected, No Control Stream):** Heartbeat pulse (`ON 500ms`, `OFF 500ms`).
+> - **Active Control Stream:** Rapid double-strobe (`ON 80ms`, `OFF 80ms`, `ON 80ms`, `OFF 600ms`).
 
-### 2. Input Mapping (Gamepad & Mobile)
+### 2. Serial Command Interface
 
-Navigate to `http://192.168.4.1/config/inputs` in your browser. This page allows you to map physical gamepad inputs or virtual mobile joystick inputs to the 20 available control channels.
+You can also monitor status and configure Wi-Fi over USB/Serial at **921600 baud**.
+
+Commands supported:
+- `help` / `?`: Print command list.
+- `status`: Display system memory (free heap), uptime, and current STA/AP connection status.
+- `get_wifi` / `wifi`: Show current Wi-Fi parameters stored in `/wifi.json`.
+- `set_wifi <ssid> <pass> [hostname] [staticIP]`: Configure Wi-Fi parameters and reboot. Supports quoted strings with spaces, e.g., `set_wifi "My Network" "My Password123"`.
+- `restart` / `reboot`: Remotely reboot the ESP32.
+
+### 3. Input Mapping (Gamepad & Mobile)
+
+Navigate to `http://192.168.4.1/inputs` in your browser. This page allows you to map physical gamepad inputs or virtual mobile joystick inputs to the 20 available control channels.
 
 **<center>![Screenshot of Input Configuration Page Overview](screenshots/screenshot_input_overview.png)</center>**
 
@@ -101,9 +119,9 @@ Switch to the "Mobile" tab on the inputs configuration page. Here you can config
 
 
 
-### 3. Output Configuration
+### 4. Output Configuration
 
-Navigate to `http://192.168.4.1/config/outputs` in your browser. This page allows you to define and configure the physical outputs connected to your ESP32, such as ESCs (Electronic Speed Controllers) for motors or Servos.
+Navigate to `http://192.168.4.1/outputs` in your browser. This page allows you to define and configure the physical outputs connected to your ESP32, such as ESCs (Electronic Speed Controllers) for motors or Servos.
 
 **<center>![Screenshot of Output Configuration Page Overview](screenshots/screenshot_output_overview.png)</center>**
 
@@ -118,7 +136,7 @@ Navigate to `http://192.168.4.1/config/outputs` in your browser. This page allow
 
 3.  **Save Changes:** After configuring all outputs, click the "Save Outputs" button. This will save the `outputMap.json` file to the ESP32's filesystem and the ESP32 will restart to apply the changes.
 
-### 4. Battery Monitoring Setup
+### 5. Battery Monitoring Setup
 
 Navigate to `http://192.168.4.1/battery` in your browser. This page allows you to configure the battery monitoring system.
 
@@ -163,8 +181,9 @@ Wifi_Control/
 │   ├── nipplejs.js
 │   ├── outputMap.json
 │   ├── page-battery.js
-│   ├── page-config-inputs.js
-│   ├── page-config-outputs.js
+│   ├── page-inputs.js
+│   ├── page-mixes.js
+│   ├── page-outputs.js
 │   ├── page-index.js
 │   ├── page-mobile.js
 │   ├── page-settings.js
@@ -185,8 +204,15 @@ Wifi_Control/
 │   ├── initializer/
 │   │   ├── DeviceInitializer.cpp
 │   │   └── DeviceInitializer.h
+│   ├── led/
+│   │   ├── LedHandler.cpp
+│   │   ├── LedHandler.h
+│   │   ├── StatusLedManager.cpp
+│   │   └── StatusLedManager.h
 │   ├── main.cpp
 │   ├── networkAndWebserver/
+│   │   ├── NetworkManager.cpp
+│   │   ├── NetworkManager.h
 │   │   ├── ProjectWsCommands.cpp
 │   │   ├── ProjectWsCommands.h
 │   │   ├── StaticFileServer.cpp
@@ -197,9 +223,12 @@ Wifi_Control/
 │   ├── outputs/
 │   │   ├── OutputManager.cpp
 │   │   └── OutputManager.h
-│   └── sensors/
-│       ├── BatteryMonitor.cpp
-│       └── BatteryMonitor.h
+│   ├── sensors/
+│   │   ├── BatteryMonitor.cpp
+│   │   └── BatteryMonitor.h
+│   └── serial/
+│       ├── SerialCommandHandler.cpp
+│       └── SerialCommandHandler.h
 └── test/
     └── README
 ```

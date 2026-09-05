@@ -5,25 +5,33 @@ async function main() {
   // Load profiles directory registry
   await loadProfilesConfig();
 
-  // Initialize page-specific logic
-  if (isConfigInputsPage()) {
+    // Initialize page-specific logic
+  if (isInputsPage()) {
     await loadControlMap();
     appendLog(debugEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
-    initConfigInputsPage();
+    initInputsPage();
+  } else if (isMixesPage()) {
+    await loadControlMap();
+    appendLog(debugEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
+    initMixesPage();
   } else if (isMobilePage()) {
     await loadControlMap();
     // No log element on mobile page, so no log output here
     initMobilePage();
-  } else if (isOutputConfigPage()) {
+  } else if (isOutputsPage()) {
     await loadControlMap(); // Needed for channel count
-    initOutputConfigPage();
-  } else if (isBatteryPage()) {
+    initOutputsPage();
+    } else if (isBatteryPage()) {
     initBatteryPage();
+  } else if (isBackupPage()) {
+    initBackupPage();
   } else if (isTroubleshootingPage()) {
-    initTroubleshootingPage();
-    } else if (isIndexPage()) {
+        initTroubleshootingPage();
+  } else if (isComputerPage()) {
     await loadControlMap();
     appendLog(logEl, `Loaded controlmap.json (channels.count=${CHANNEL_COUNT}, sources=${SOURCES.length})`);
+    initComputerPage();
+    } else if (isIndexPage()) {
     initIndexPage();
   } else if (isSettingsPage()) {
     initSettingsPage();

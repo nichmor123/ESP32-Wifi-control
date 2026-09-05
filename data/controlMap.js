@@ -44,8 +44,23 @@ function defaultControlMapFallback() {
         { id: "m_lsy", "kind": "axis",   "label": "Mobile Left Y" },
         { id: "m_rsx", "kind": "axis",   "label": "Mobile Right X" },
         { id: "m_rsy", "kind": "axis",   "label": "Mobile Right Y" },
-        { id: "m_btn_a", "kind": "button", "label": "Mobile Button A" },
-        { id: "m_btn_b", "kind": "button", "label": "Mobile Button B" }
+                { id: "m_btn_a", "kind": "button", "label": "Mobile Button A" },
+        { id: "m_btn_b", "kind": "button", "label": "Mobile Button B" },
+        // Keyboard Sources
+        { id: "k_w", "kind": "button", "label": "Key W" },
+        { id: "k_a", "kind": "button", "label": "Key A" },
+        { id: "k_s", "kind": "button", "label": "Key S" },
+        { id: "k_d", "kind": "button", "label": "Key D" },
+        { id: "k_q", "kind": "button", "label": "Key Q" },
+        { id: "k_e", "kind": "button", "label": "Key E" },
+        { id: "k_r", "kind": "button", "label": "Key R" },
+        { id: "k_f", "kind": "button", "label": "Key F" },
+        { id: "k_shift", "kind": "button", "label": "Key Shift" },
+        { id: "k_ctrl", "kind": "button", "label": "Key Ctrl" },
+        { id: "k_arrowup", "kind": "button", "label": "Key Arrow Up" },
+        { id: "k_arrowdown", "kind": "button", "label": "Key Arrow Down" },
+        { id: "k_arrowleft", "kind": "button", "label": "Key Arrow Left" },
+        { id: "k_arrowright", "kind": "button", "label": "Key Arrow Right" }
       ],
       "mixes": [],
       map_to_channels: [
@@ -138,4 +153,21 @@ function getSourceKind(sourceId) {
 function defaultXformForKind(kind) {
   if (kind === "button") return { type: "button", on: 1.0, off: 0.0 };
   return { type: "linear", scale: 1.0, offset: 0.0 };
+}
+
+function updateControlMapToChannels() {
+  const list = [];
+  for (const src of SOURCES) {
+    const ch = sourceToChannel.get(src.id);
+    if (typeof ch !== "number") continue;
+
+    const xform = sourceToXform.get(src.id);
+    const entry = { source: src.id, ch };
+    if (xform) entry.xform = xform;
+    list.push(entry);
+  }
+  list.sort((a, b) => a.ch - b.ch || a.source.localeCompare(b.source));
+  if (!controlMap) controlMap = {};
+  if (!controlMap.inputs) controlMap.inputs = {};
+  controlMap.inputs.map_to_channels = list;
 }

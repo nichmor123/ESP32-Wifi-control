@@ -1,3 +1,69 @@
+// ---------- keyboard state tracking ----------
+const keyboardState = {};
+
+window.addEventListener("keydown", (e) => {
+  const tag = e.target?.tagName.toLowerCase() ?? "";
+  if (["input", "textarea", "select"].includes(tag)) return;
+  
+  // Note: Space is reserved for emergency stop on main index page
+  const codeMap = {
+    KeyW: "k_w",
+    KeyA: "k_a",
+    KeyS: "k_s",
+    KeyD: "k_d",
+    KeyQ: "k_q",
+    KeyE: "k_e",
+    KeyR: "k_r",
+    KeyF: "k_f",
+    ShiftLeft: "k_shift",
+    ShiftRight: "k_shift",
+    ControlLeft: "k_ctrl",
+    ControlRight: "k_ctrl",
+    ArrowUp: "k_arrowup",
+    ArrowDown: "k_arrowdown",
+    ArrowLeft: "k_arrowleft",
+    ArrowRight: "k_arrowright"
+  };
+
+  const srcId = codeMap[e.code];
+  if (srcId) {
+    keyboardState[srcId] = true;
+  }
+});
+
+window.addEventListener("keyup", (e) => {
+  const tag = e.target?.tagName.toLowerCase() ?? "";
+  if (["input", "textarea", "select"].includes(tag)) return;
+
+  const codeMap = {
+    KeyW: "k_w",
+    KeyA: "k_a",
+    KeyS: "k_s",
+    KeyD: "k_d",
+    KeyQ: "k_q",
+    KeyE: "k_e",
+    KeyR: "k_r",
+    KeyF: "k_f",
+    ShiftLeft: "k_shift",
+    ShiftRight: "k_shift",
+    ControlLeft: "k_ctrl",
+    ControlRight: "k_ctrl",
+    ArrowUp: "k_arrowup",
+    ArrowDown: "k_arrowdown",
+    ArrowLeft: "k_arrowleft",
+    ArrowRight: "k_arrowright"
+  };
+
+  const srcId = codeMap[e.code];
+  if (srcId) {
+    keyboardState[srcId] = false;
+  }
+});
+
+function readKeyboardState() {
+  return keyboardState;
+}
+
 // Apply xform from controlmap.json (minimal set: linear/expo/button)
 function applyXform(raw, kind, xform) {
   const xf = xform || defaultXformForKind(kind);
@@ -33,10 +99,30 @@ function applyXform(raw, kind, xform) {
 }
 
 function computeChannelsFromState(state) {
-  // Create a map of all available input values, starting with raw sources
-  const allInputValues = { ...state.analog };
-  for (const key in state.digital) {
-    allInputValues[key] = state.digital[key] ? 1.0 : 0.0;
+  const onMobile = typeof isMobilePage === "function" && isMobilePage();
+
+  // Create a map of all available input values
+  const allInputValues = {};
+
+  if (onMobile) {
+    // On Mobile page: process only mobile analog & digital state
+    for (const key in state.analog) {
+      if (key.startsWith("m_")) allInputValues[key] = state.analog[key];
+    }
+    for (const key in state.digital) {
+      if (key.startsWith("m_")) allInputValues[key] = state.digital[key] ? 1.0 : 0.0;
+    }
+  } else {
+    // On Main/Desktop page: process gamepad and keyboard state, ignoring mobile sources (m_)
+    for (const key in state.analog) {
+      if (!key.startsWith("m_")) allInputValues[key] = state.analog[key];
+    }
+    for (const key in state.digital) {
+      if (!key.startsWith("m_")) allInputValues[key] = state.digital[key] ? 1.0 : 0.0;
+    }
+    for (const key in keyboardState) {
+      if (!key.startsWith("m_")) allInputValues[key] = keyboardState[key] ? 1.0 : 0.0;
+    }
   }
 
   // Calculate mix values
@@ -44,9 +130,14 @@ function computeChannelsFromState(state) {
   mixes.forEach(mix => {
     let mixValue = 0;
     (mix.positive || []).forEach(srcId => {
+      // Ignore source if on mobile and source is desktop or vice versa
+      if (onMobile && !srcId.startsWith("m_") && !srcId.startsWith("mix_")) return;
+      if (!onMobile && srcId.startsWith("m_")) return;
       mixValue += allInputValues[srcId] || 0;
     });
     (mix.negative || []).forEach(srcId => {
+      if (onMobile && !srcId.startsWith("m_") && !srcId.startsWith("mix_")) return;
+      if (!onMobile && srcId.startsWith("m_")) return;
       mixValue -= allInputValues[srcId] || 0;
     });
     // Clamp the result to the standard -1 to 1 range
@@ -61,8 +152,12 @@ function computeChannelsFromState(state) {
     const chIdx = m.ch - 1;
     if (chIdx < 0 || chIdx >= CHANNEL_COUNT) continue;
 
-    // A source can be a raw input or a mix
     const sourceId = m.source;
+
+    // Ignore mobile mappings when on Main page, and ignore gamepad/keyboard mappings when on Mobile page
+    if (onMobile && !sourceId.startsWith("m_") && !sourceId.startsWith("mix_")) continue;
+    if (!onMobile && sourceId.startsWith("m_")) continue;
+
     const rawValue = allInputValues[sourceId] || 0;
 
     const kind = getSourceKind(sourceId);

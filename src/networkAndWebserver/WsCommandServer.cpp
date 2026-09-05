@@ -29,7 +29,30 @@ struct WsRxBuffer {
     }
 };
 
+struct WsBinRxBuffer {
+    uint32_t clientId = 0;
+    size_t expectedLen = 0;
+    size_t filled = 0;
+    uint8_t buf[256];
+    bool active = false;
+
+    void reset(uint32_t id, size_t len) {
+        clientId = id;
+        expectedLen = len;
+        filled = 0;
+        active = true;
+    }
+
+    void clear() {
+        clientId = 0;
+        expectedLen = 0;
+        filled = 0;
+        active = false;
+    }
+};
+
 static WsRxBuffer g_rx;
+static WsBinRxBuffer g_binRx;
 
 WsCommandServer::WsCommandServer(const char* wsPath)
     : _ws(wsPath) {}
@@ -71,6 +94,10 @@ void WsCommandServer::begin() {
     });
 }
 
+void WsCommandServer::cleanupClients() {
+    _ws.cleanupClients();
+}
+
 void WsCommandServer::sendText(AsyncWebSocketClient* client, const char* text) {
     if (!client || !text) return;
     client->text(text);
@@ -100,11 +127,14 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
             Serial.printf("WS client connected: id=%u\n", client ? client->id() : 0);
             break;
 
-        case WS_EVT_DISCONNECT:
+                case WS_EVT_DISCONNECT:
             Serial.printf("WS client disconnected: id=%u\n", client ? client->id() : 0);
             // If the disconnected client was buffering, clear it
             if (client && g_rx.active && g_rx.clientId == client->id()) {
                 g_rx.clear();
+            }
+            if (client && g_binRx.active && g_binRx.clientId == client->id()) {
+                g_binRx.clear();
             }
             break;
 
@@ -112,14 +142,35 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
             auto* info = reinterpret_cast<AwsFrameInfo*>(arg);
             if (!info || !client) return;
 
-            // ---- NEW: Binary control packets ----
+            // ---- Binary control packets ----
             if (info->opcode == WS_BINARY) {
-                // Control packets are small; require one complete frame
-                if (!info->final || info->index != 0) {
-                    client->text("{\"err\":\"bin_fragment_not_supported\"}");
+                // If it's single unfragmented frame
+                if (info->final && info->index == 0 && info->len == len) {
+                    if (_binHandler) _binHandler(client, data, len);
                     return;
                 }
-                if (_binHandler) _binHandler(client, data, len);
+
+                // Handle multi-chunk / fragmented binary frames
+                if (info->index == 0) {
+                    g_binRx.reset(client->id(), info->len);
+                    if (g_binRx.expectedLen > sizeof(g_binRx.buf)) {
+                        g_binRx.clear();
+                        client->text("{\"err\":\"bin_msg_too_large\"}");
+                        return;
+                    }
+                }
+
+                if (g_binRx.active && g_binRx.clientId == client->id()) {
+                    if (g_binRx.filled + len <= sizeof(g_binRx.buf)) {
+                        memcpy(g_binRx.buf + info->index, data, len);
+                        g_binRx.filled += len;
+                    }
+
+                    if (info->final && g_binRx.filled >= g_binRx.expectedLen) {
+                        if (_binHandler) _binHandler(client, g_binRx.buf, g_binRx.filled);
+                        g_binRx.clear();
+                    }
+                }
                 return;
             }
 
@@ -139,8 +190,8 @@ void WsCommandServer::handleEvent(AsyncWebSocket*,
                 }
                 g_rx.reset(client->id(), info->len);
 
-                // Basic sanity limit (tune as you like)
-                if (g_rx.expectedLen > 20000) {
+                                // Basic sanity limit (tune as you like)
+                if (g_rx.expectedLen > 100000) {
                     Serial.printf("WS: message too large (%u bytes)\n", (unsigned)g_rx.expectedLen);
                     g_rx.clear();
                     client->text("{\"err\":\"msg_too_large\"}");
