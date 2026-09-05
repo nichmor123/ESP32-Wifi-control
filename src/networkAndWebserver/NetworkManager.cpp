@@ -21,7 +21,7 @@ bool NetworkManager::begin(StatusLedManager* statusLed) {
     DeviceInitializer::initialize(ap.ssid, ap.password, statusLed);
 
     // Read wifi.json for static IP if configured
-    File wifiFile = LittleFS.open("/wifi.json", "r");
+    File wifiFile = LittleFS.open("/config/wifi.json", "r");
     if (wifiFile) {
         JsonDocument wifiDoc;
         if (!deserializeJson(wifiDoc, wifiFile)) {
@@ -58,7 +58,7 @@ bool NetworkManager::begin(StatusLedManager* statusLed) {
 }
 
 void NetworkManager::setupMDNS() {
-    File mDnsFile = LittleFS.open("/wifi.json", "r");
+    File mDnsFile = LittleFS.open("/config/wifi.json", "r");
     String hostname = "esp32controller";
     if (mDnsFile) {
         JsonDocument wifiDoc;
@@ -90,6 +90,7 @@ void NetworkManager::setupRoutes() {
     _webServer.addPageRoute("/backup", "/backup.html");
     _webServer.addPageRoute("/troubleshooting", "/troubleshooting.html");
     _webServer.addPageRoute("/settings", "/settings.html");
+    _webServer.addPageRoute("/theme", "/theme.html");
 
     // Serve static files from LittleFS root
     _webServer.server().serveStatic("/", LittleFS, "/");

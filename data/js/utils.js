@@ -1,13 +1,13 @@
 let profilesConfig = {
-  active_input: "/controlMap.json",
-  active_output: "/outputMap.json",
-  inputs: { "Default": "/controlMap.json" },
-  outputs: { "Default": "/outputMap.json" }
+  active_input: "/config/controlMap.json",
+  active_output: "/config/outputMap.json",
+  inputs: { "Default": "/config/controlMap.json" },
+  outputs: { "Default": "/config/outputMap.json" }
 };
 
 async function loadProfilesConfig() {
   try {
-    const res = await fetch("/profiles.json?v=" + Date.now(), { cache: "no-store" });
+    const res = await fetch("/config/profiles.json?v=" + Date.now(), { cache: "no-store" });
     if (res.ok) {
         const data = await res.json();
         profilesConfig = { ...profilesConfig, ...data };
@@ -15,9 +15,26 @@ async function loadProfilesConfig() {
   } catch (e) {
       // profiles.json might not exist yet
   }
-  // Ensure arrays exist in case they were empty
-  if (!profilesConfig.inputs) profilesConfig.inputs = {"Default": "/controlMap.json"};
-  if (!profilesConfig.outputs) profilesConfig.outputs = {"Default": "/outputMap.json"};
+  // Normalize legacy paths to /config/
+    const fixPath = (p) => (p && !p.startsWith("/config/")) ? "/config" + (p.startsWith("/") ? p : "/" + p) : p;
+    if (profilesConfig.active_input) profilesConfig.active_input = fixPath(profilesConfig.active_input);
+    if (profilesConfig.active_output) profilesConfig.active_output = fixPath(profilesConfig.active_output);
+
+    if (profilesConfig.inputs) {
+      for (const k in profilesConfig.inputs) {
+        profilesConfig.inputs[k] = fixPath(profilesConfig.inputs[k]);
+      }
+    } else {
+      profilesConfig.inputs = { "Default": "/config/controlMap.json" };
+    }
+
+    if (profilesConfig.outputs) {
+      for (const k in profilesConfig.outputs) {
+        profilesConfig.outputs[k] = fixPath(profilesConfig.outputs[k]);
+      }
+    } else {
+      profilesConfig.outputs = { "Default": "/config/outputMap.json" };
+    }
 }
 
 // DOM element getters
@@ -96,6 +113,10 @@ function isTroubleshootingPage() {
 
 function isComputerPage() {
   return document.body.id === 'page-computer';
+}
+
+function isThemePage() {
+  return document.body.id === 'page-theme';
 }
 
 function buildChannelOptions(selectedChannel, includeNone) {

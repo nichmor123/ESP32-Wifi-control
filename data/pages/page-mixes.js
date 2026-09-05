@@ -304,7 +304,7 @@ function initMixesPage() {
           const name = prompt("Enter a name for the new Input Profile:");
           if (!name || name.trim() === "") return;
           const safeName = name.replace(/[^a-zA-Z0-9 _-]/g, '');
-          const filename = `/controlMap_${Date.now()}.json`;
+          const filename = `/config/controlMap_${Date.now()}.json`;
           
           profilesConfig.inputs[safeName] = filename;
           profilesConfig.active_input = filename;
@@ -410,7 +410,7 @@ function initMixesPage() {
       updateControlMapToChannels();
 
       const profileSelect = document.getElementById("profileSelect");
-      const activeFile = profileSelect ? profilesConfig.inputs[profileSelect.value] : "/controlMap.json";
+      const activeFile = profileSelect ? profilesConfig.inputs[profileSelect.value] : "/config/controlMap.json";
 
       const msg = {
         cmd: "save_input_mapping",

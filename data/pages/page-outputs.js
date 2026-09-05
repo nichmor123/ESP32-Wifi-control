@@ -1,7 +1,7 @@
 let outputMap = null;
 
 async function loadOutputMap() {
-    const url = "/outputMap.json?v=" + Date.now();
+    const url = "/config/outputMap.json?v=" + Date.now();
     try {
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -128,9 +128,9 @@ async function initOutputsPage() {
         }
 
                 profileSelect.onchange = () => {
-            profilesConfig.active_output = profilesConfig.outputs[profileSelect.value];
-            appendLog(debugEl, `Selected profile: ${profileSelect.value}. Click 'Load' to view it, or 'Save Outputs' to overwrite it.`);
-        };
+                            profilesConfig.active_output = profilesConfig.outputs[profileSelect.value];
+                            appendLog(debugEl, `Selected profile: ${profileSelect.value}. Click 'Load' to view it, or 'Save & Restart' to overwrite it.`);
+                        };
     }
 
     // Load Profile Button
@@ -146,7 +146,7 @@ async function initOutputsPage() {
                 if (res.ok) {
                     outputMap = await res.json();
                     renderOutputCards();
-                    appendLog(debugEl, `Loaded profile: ${newActiveName}. Click 'Save Outputs' to apply changes to ESP32.`);
+                    appendLog(debugEl, `Loaded profile: ${newActiveName}. Click 'Save & Restart' to apply changes to ESP32.`);
                 }
             } catch (e) {
                 appendLog(debugEl, `Failed to load profile: ${newActiveName}`);
@@ -161,7 +161,7 @@ async function initOutputsPage() {
             const name = prompt("Enter a name for the new Output Profile:");
             if (!name || name.trim() === "") return;
             const safeName = name.replace(/[^a-zA-Z0-9 _-]/g, '');
-            const filename = `/outputMap_${Date.now()}.json`;
+            const filename = `/config/outputMap_${Date.now()}.json`;
             
             profilesConfig.outputs[safeName] = filename;
             profilesConfig.active_output = filename;
@@ -175,7 +175,7 @@ async function initOutputsPage() {
                 if (profilesConfig.outputs[n] === profilesConfig.active_output) opt.selected = true;
                 profileSelect.appendChild(opt);
             }
-            appendLog(debugEl, `Created new profile: ${safeName}. Click 'Save Outputs' to finalize.`);
+            appendLog(debugEl, `Created new profile: ${safeName}. Click 'Save & Restart' to finalize.`);
         };
     }
 
@@ -263,7 +263,7 @@ async function initOutputsPage() {
                         if (parsed.outputs) {
                             outputMap = parsed;
                             renderOutputCards();
-                            appendLog(debugEl, "Output Profile loaded! Click Save Outputs to ESP32 to apply.");
+                            appendLog(debugEl, "Output Profile loaded! Click 'Save & Restart' to apply to ESP32.");
                         } else {
                             throw new Error("Invalid format");
                         }
@@ -282,7 +282,7 @@ async function initOutputsPage() {
         collectOutputData();
 
         const profileSelect = document.getElementById("profileSelect");
-        const activeFile = profileSelect ? profilesConfig.outputs[profileSelect.value] : "/outputMap.json";
+        const activeFile = profileSelect ? profilesConfig.outputs[profileSelect.value] : "/config/outputMap.json";
 
         const msg = {
             cmd: "save_output_mapping",

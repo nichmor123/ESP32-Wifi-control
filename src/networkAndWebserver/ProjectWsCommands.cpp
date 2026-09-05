@@ -58,7 +58,7 @@ static void handleSaveInputMapping(AsyncWebSocketClient* client, JsonVariantCons
     const char* mapText = obj["controlMapText"];
     
     // Check if saving to a specific profile or the active profile
-    const char* filename = "/controlMap.json";
+        const char* filename = "/config/controlMap.json";
     if (obj["profileName"].is<const char*>()) {
         filename = obj["profileName"];
     }
@@ -87,7 +87,7 @@ static void handleSaveBatteryConfig(AsyncWebSocketClient* client, JsonVariantCon
     }
     const char* mapText = obj["batteryConfigText"];
 
-    File file = LittleFS.open("/battery.json", "w");
+    File file = LittleFS.open("/config/battery.json", "w");
     if (!file) {
         client->text("{\"cmd\":\"save_battery_config_err\",\"data\":{\"status\":\"fs_error\"}}");
         return;
@@ -115,26 +115,22 @@ static void handleSaveOutputMapping(AsyncWebSocketClient* client, JsonVariantCon
     const char* mapText = obj["outputMapText"];
     
     // Check if saving to a specific profile or the active profile
-    const char* filename = "/outputMap.json";
-    if (obj["profileName"].is<const char*>()) {
-        filename = obj["profileName"];
-    }
+        const char* filename = "/config/outputMap.json";
+        if (obj["profileName"].is<const char*>()) {
+            filename = obj["profileName"];
+        }
 
-    File file = LittleFS.open(filename, "w");
-    if (!file) {
-        client->text("{\"cmd\":\"save_output_mapping_err\",\"data\":{\"status\":\"fs_error\"}}");
-        return;
-    }
-    file.print(mapText);
-    file.close();
+        File file = LittleFS.open(filename, "w");
+        if (!file) {
+            client->text("{\"cmd\":\"save_output_mapping_err\",\"data\":{\"status\":\"fs_error\"}}");
+            return;
+        }
+        file.print(mapText);
+        file.close();
 
-    client->text("{\"cmd\":\"save_output_mapping_ok\",\"data\":{\"status\":\"ok\"}}");
+        client->text("{\"cmd\":\"save_output_mapping_ok\",\"data\":{\"status\":\"ok\"}}");
     
-    // Only restart if we overwrote the active output map
-    if (strcmp(filename, "/outputMap.json") == 0) {
-        delay(200);
-        ESP.restart();
-    }
+        // Output map save acknowledged. Restart is handled by save_profiles_config if required.
 }
 
 static void handleSaveProfilesConfig(AsyncWebSocketClient* client, JsonVariantConst data) {
@@ -150,7 +146,7 @@ static void handleSaveProfilesConfig(AsyncWebSocketClient* client, JsonVariantCo
     }
     const char* mapText = obj["profilesConfigText"];
 
-    File file = LittleFS.open("/profiles.json", "w");
+    File file = LittleFS.open("/config/profiles.json", "w");
     if (!file) {
         client->text("{\"cmd\":\"save_profiles_config_err\",\"data\":{\"status\":\"fs_error\"}}");
         return;
@@ -174,7 +170,7 @@ static void handleSaveProfilesConfig(AsyncWebSocketClient* client, JsonVariantCo
         const char* sourceFile = obj["setActiveInput"];
         if (LittleFS.exists(sourceFile)) {
             File source = LittleFS.open(sourceFile, "r");
-            File dest = LittleFS.open("/controlMap.json", "w");
+            File dest = LittleFS.open("/config/controlMap.json", "w");
             if (source && dest) {
                 while (source.available()) {
                     dest.write(source.read());
@@ -189,7 +185,7 @@ static void handleSaveProfilesConfig(AsyncWebSocketClient* client, JsonVariantCo
         const char* sourceFile = obj["setActiveOutput"];
         if (LittleFS.exists(sourceFile)) {
             File source = LittleFS.open(sourceFile, "r");
-            File dest = LittleFS.open("/outputMap.json", "w");
+            File dest = LittleFS.open("/config/outputMap.json", "w");
             if (source && dest) {
                 while (source.available()) {
                     dest.write(source.read());
@@ -222,16 +218,21 @@ static void handleRestoreBackup(AsyncWebSocketClient* client, JsonVariantConst d
     size_t restoredCount = 0;
 
     for (JsonPairConst kv : filesMap) {
-        String filePath = kv.key().c_str();
-        if (filePath.length() == 0) continue;
-        if (!filePath.startsWith("/")) {
-            filePath = "/" + filePath;
-        }
+            String filePath = kv.key().c_str();
+            if (filePath.length() == 0) continue;
+            if (!filePath.startsWith("/")) {
+                filePath = "/" + filePath;
+            }
 
-        // Extract value as JsonVariantConst to handle both string and object/array representations
-        JsonVariantConst val = kv.value();
+            // Automatically remap legacy root configuration paths to /config/
+            if (!filePath.startsWith("/config/")) {
+                filePath = "/config" + filePath;
+            }
+
+            // Extract value as JsonVariantConst to handle both string and object/array representations
+            JsonVariantConst val = kv.value();
         
-        File f = LittleFS.open(filePath.c_str(), "w");
+            File f = LittleFS.open(filePath.c_str(), "w");
         if (f) {
             if (val.is<const char*>()) {
                 f.print(val.as<const char*>());
@@ -261,39 +262,62 @@ static void handleRestoreBackup(AsyncWebSocketClient* client, JsonVariantConst d
     }
 }
     static void handleSaveWifiConfig(AsyncWebSocketClient* client, JsonVariantConst data) {
-    if (!data.is<JsonObjectConst>()) {
-        client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"data is not an object\"}}");
-        return;
-    }
-    JsonObjectConst obj = data.as<JsonObjectConst>();
-
-    if (!obj["wifiConfigText"].is<const char*>()) {
-        client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"wifiConfigText missing or not string\"}}");
-        return;
-    }
-    
-    // Set the modified flag to 1 so the device knows it has been configured
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, obj["wifiConfigText"]);
-    if (!error) {
-        doc["modified"] = 1;
-        
-        File file = LittleFS.open("/wifi.json", "w");
-        if (!file) {
-            client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"fs_error\"}}");
+        if (!data.is<JsonObjectConst>()) {
+            client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"data is not an object\"}}");
             return;
         }
-        serializeJson(doc, file);
+        JsonObjectConst obj = data.as<JsonObjectConst>();
+
+        if (!obj["wifiConfigText"].is<const char*>()) {
+            client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"wifiConfigText missing or not string\"}}");
+            return;
+        }
+    
+        // Set the modified flag to 1 so the device knows it has been configured
+        JsonDocument doc;
+        DeserializationError error = deserializeJson(doc, obj["wifiConfigText"]);
+        if (!error) {
+            doc["modified"] = 1;
+        
+            File file = LittleFS.open("/config/wifi.json", "w");
+            if (!file) {
+                client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"fs_error\"}}");
+                return;
+            }
+            serializeJson(doc, file);
+            file.close();
+
+            client->text("{\"cmd\":\"save_wifi_config_ok\",\"data\":{\"status\":\"ok\"}}");
+            // Add a short delay to ensure the WebSocket message is sent before restarting
+            delay(200);
+            ESP.restart();
+        } else {
+             client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"json_error\"}}");
+        }
+    }
+
+    static void handleSaveThemeConfig(AsyncWebSocketClient* client, JsonVariantConst data) {
+        if (!data.is<JsonObjectConst>()) {
+            client->text("{\"cmd\":\"save_theme_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"data is not an object\"}}");
+            return;
+        }
+        JsonObjectConst obj = data.as<JsonObjectConst>();
+
+        if (!obj["themeConfigText"].is<const char*>()) {
+            client->text("{\"cmd\":\"save_theme_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"themeConfigText missing or not string\"}}");
+            return;
+        }
+
+        File file = LittleFS.open("/config/theme.json", "w");
+        if (!file) {
+            client->text("{\"cmd\":\"save_theme_config_err\",\"data\":{\"status\":\"fs_error\"}}");
+            return;
+        }
+        file.print(obj["themeConfigText"].as<const char*>());
         file.close();
 
-        client->text("{\"cmd\":\"save_wifi_config_ok\",\"data\":{\"status\":\"ok\"}}");
-        // Add a short delay to ensure the WebSocket message is sent before restarting
-        delay(200);
-        ESP.restart();
-    } else {
-         client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"json_error\"}}");
+        client->text("{\"cmd\":\"save_theme_config_ok\",\"data\":{\"status\":\"ok\"}}");
     }
-}
 
 // --- Diagnostic Handlers ---
 static void handleGetHeap(AsyncWebSocketClient* client) {
@@ -348,9 +372,14 @@ void RegisterProjectWsCommands(WsCommandServer& ws) {
         handleSaveOutputMapping(client, data);
     });
 
-        ws.on("save_wifi_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+                ws.on("save_wifi_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
         (void)doc;
         handleSaveWifiConfig(client, data);
+    });
+
+    ws.on("save_theme_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        (void)doc;
+        handleSaveThemeConfig(client, data);
     });
 
         ws.on("save_profiles_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {

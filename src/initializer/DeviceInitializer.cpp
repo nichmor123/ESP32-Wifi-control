@@ -8,7 +8,7 @@ int DeviceInitializer::initialize(String& ssidToModify, String& passwordToModify
     bool isModified = false;
     
     // 1. Read wifi.json to check modified status
-    File wifiFile = LittleFS.open("/wifi.json", "r");
+    File wifiFile = LittleFS.open("/config/wifi.json", "r");
     if (wifiFile) {
         JsonDocument wifiDoc;
         if (!deserializeJson(wifiDoc, wifiFile)) {

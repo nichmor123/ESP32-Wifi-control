@@ -5,7 +5,7 @@
 BatteryMonitor::BatteryMonitor() {}
 
 void BatteryMonitor::begin() {
-    File file = LittleFS.open("/battery.json");
+    File file = LittleFS.open("/config/battery.json");
     if (!file) {
         Serial.println("No battery.json found, monitoring disabled.");
         return;

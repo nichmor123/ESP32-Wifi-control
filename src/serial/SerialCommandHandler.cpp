@@ -116,7 +116,7 @@ void SerialCommandHandler::printStatus() {
 }
 
 void SerialCommandHandler::printWifiConfig() {
-    File file = LittleFS.open("/wifi.json", "r");
+    File file = LittleFS.open("/config/wifi.json", "r");
     if (!file) {
         Serial.println("Error: Unable to open /wifi.json for reading.");
         return;
@@ -161,7 +161,7 @@ void SerialCommandHandler::handleSetWifi(const String& argsStr) {
 
     // Read current file to preserve defaults if needed
     JsonDocument doc;
-    File readFile = LittleFS.open("/wifi.json", "r");
+    File readFile = LittleFS.open("/config/wifi.json", "r");
     if (readFile) {
         deserializeJson(doc, readFile);
         readFile.close();
@@ -173,7 +173,7 @@ void SerialCommandHandler::handleSetWifi(const String& argsStr) {
     doc["staticIP"] = staticIP;
     doc["modified"] = 1; // Set modified flag so DeviceInitializer respects user config
 
-    File writeFile = LittleFS.open("/wifi.json", "w");
+    File writeFile = LittleFS.open("/config/wifi.json", "w");
     if (!writeFile) {
         Serial.println("Error: Could not open /wifi.json for writing!");
         return;

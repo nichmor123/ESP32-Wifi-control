@@ -90,13 +90,13 @@ function defaultControlMapFallback() {
 }
 
 async function loadControlMap() {
-  const url = "/controlMap.json?v=" + Date.now();
+  const url = "/config/controlMap.json?v=" + Date.now();
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     controlMap = await res.json();
   } catch (e) {
-    appendLog(debugEl || logEl, `Failed to load /controlmap.json (${e.message}). Using fallback.`);
+    appendLog(debugEl || logEl, `Failed to load /config/controlMap.json (${e.message}). Using fallback.`);
     controlMap = defaultControlMapFallback();
   }
   deriveRuntimeFromControlMap();

@@ -65,7 +65,7 @@ void OutputManager::halt() {
 }
 
 void OutputManager::parseConfig() {
-    File file = LittleFS.open("/outputMap.json");
+    File file = LittleFS.open("/config/outputMap.json");
     if (!file) {
         Serial.println("Failed to open outputMap.json");
         return;

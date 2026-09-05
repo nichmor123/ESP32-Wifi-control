@@ -1,3 +1,17 @@
+/* ------------------ Root Variables & Theme Defaults ------------------ */
+
+:root {
+    --accent-color: #00ffcc;
+    --bg-color: #111111;
+    --card-bg: #1c1c1c;
+    --text-color: #eeeeee;
+    --text-muted: #888888;
+    --subcard-bg: #141414;
+    --nav-item-bg: #242424;
+    --nav-item-hover: #333333;
+    --border-color: #333333;
+}
+
 /* ------------------ Base ------------------ */
 
 body {
@@ -5,8 +19,8 @@ body {
     width: 100%;  /* Ensure body takes full viewport width */
     margin: 0;
     font-family: system-ui, Arial, Helvetica, sans-serif;
-    background: #111;
-    color: #eee;
+    background: var(--bg-color);
+    color: var(--text-color);
 }
 
 /* ------------------ Layout ------------------ */
@@ -22,7 +36,7 @@ body {
 
 .nav {
     width: 200px;
-    background: #1c1c1c;
+    background: var(--card-bg);
     border-radius: 12px;
     padding: 16px;
     height: fit-content;
@@ -31,7 +45,7 @@ body {
 .navTitle {
     font-weight: bold;
     margin-bottom: 12px;
-    color: #00ffcc;
+    color: var(--accent-color);
 }
 
 .nav a {
@@ -39,18 +53,20 @@ body {
     padding: 10px;
     margin-bottom: 8px;
     text-decoration: none;
-    color: #eee;
+    color: var(--text-color);
     font-weight: normal;
     border-radius: 6px;
-    background: #242424;
+    background: var(--nav-item-bg);
 }
 
 .nav a:hover {
-    background: #333;
+    background: var(--nav-item-hover);
 }
 
 .nav a.active {
     font-weight: bold;
+    border-left: 4px solid var(--accent-color);
+    background: var(--nav-item-hover);
 }
 
 /* Main content */
@@ -63,7 +79,7 @@ body {
 /* ------------------ Card ------------------ */
 
 .card {
-    background: #1c1c1c;
+    background: var(--card-bg);
     padding: 40px;
     border-radius: 12px;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -74,18 +90,18 @@ body {
 
 h1 {
     margin-top: 0;
-    color: #00ffcc;
+    color: var(--accent-color);
 }
 
 .subtitle {
-    opacity: 0.8;
+    color: var(--text-muted);
 }
 
 .sectionTitle {
     margin-top: 18px;
     font-weight: 800;
     letter-spacing: 0.4px;
-    color: #00ffcc;
+    color: var(--accent-color);
     text-align: left;
 }
 
@@ -106,8 +122,9 @@ button {
     border-radius: 8px;
     border: none;
     cursor: pointer;
-    background: #00ffcc;
+    background: var(--accent-color);
     color: #000;
+    font-weight: bold;
 }
 
 button:hover {
@@ -139,12 +156,43 @@ button:hover {
 /* ------------------ Channel Cards ------------------ */
 
 .chanCard {
-  background: #141414;
+  background: var(--subcard-bg);
   border-radius: 12px;
   padding: 14px;
   box-shadow: 0 0 12px rgba(0,0,0,0.35);
   text-align: left;
 }
+
+.chanName {
+  font-weight: 700;
+  color: var(--accent-color);
+}
+
+.output-card .card-title {
+  font-weight: bold;
+  color: var(--accent-color);
+}
+
+.barFill {
+  height: 100%;
+  width: 50%;
+  background: var(--accent-color);
+  opacity: 0.9;
+}
+
+.pillOn .pillDot {
+  background: var(--accent-color);
+  box-shadow: 0 0 14px var(--accent-color);
+}
+
+.tab-button.active {
+  color: var(--accent-color);
+  background: var(--card-bg);
+  border-color: var(--accent-color) var(--border-color) var(--card-bg) var(--border-color);
+  border-bottom: 2px solid var(--card-bg);
+  font-weight: bold;
+}
+
 .error-box {
   margin-top: 15px;
   padding: 15px;

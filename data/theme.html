@@ -1,0 +1,84 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Theme Settings</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body id="page-theme">
+
+<div class="layout">
+    <aside class="nav">
+        <div class="navTitle">Controller</div>
+        <a href="/">Overview</a>
+        <a href="/computer">Computer Control</a>
+        <a href="/mobile">Mobile Control</a>
+        <a href="/inputs">Input Mapping</a>
+        <a href="/mixes">Input Mixes</a>
+        <a href="/outputs">Output Mapping</a>
+        <a href="/battery">Battery</a>
+        <a href="/backup">Backup & Restore</a>
+        <a href="/troubleshooting">Troubleshooting</a>
+        <a href="/settings">Settings</a>
+        <a href="/theme" class="active">Theme</a>
+    </aside>
+
+    <main class="page">
+        <div class="card">
+            <h1>Theme Customization</h1>
+            <p class="subtitle">Customize the interface accent colors, backgrounds, text, and card styles across all pages.</p>
+
+            <div class="tab-container" style="margin-top: 15px;">
+                <div class="tab-bar">
+                    <button class="tab-button active" onclick="switchThemeTab('presets')">Presets</button>
+                    <button class="tab-button" onclick="switchThemeTab('custom')">Custom Colors</button>
+                </div>
+
+                <!-- Presets Tab -->
+                <div id="tab-presets" class="tab-pane active">
+                    <div class="sectionTitle">Select a Preset</div>
+                    <div id="presets-grid" class="grid" style="margin-top: 15px;"></div>
+                </div>
+
+                <!-- Custom Tab -->
+                <div id="tab-custom" class="tab-pane">
+                    <div class="sectionTitle">Color Controls</div>
+                    <div class="form-grid" style="display: grid; grid-template-columns: auto 1fr; gap: 15px; align-items: center; margin-top: 15px;">
+                        <label for="color-accent">Accent Color:</label>
+                        <input type="color" id="color-accent" value="#00ffcc">
+
+                        <label for="color-bg">Background Color:</label>
+                        <input type="color" id="color-bg" value="#111111">
+
+                        <label for="color-card">Card Background:</label>
+                        <input type="color" id="color-card" value="#1c1c1c">
+
+                        <label for="color-text">Primary Text Color:</label>
+                        <input type="color" id="color-text" value="#eeeeee">
+
+                        <label for="color-muted">Secondary / Muted Text:</label>
+                        <input type="color" id="color-muted" value="#888888">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview & Save controls -->
+            <div style="margin-top: 30px; display: flex; gap: 15px; align-items: center; border-top: 1px solid var(--border-color, #2a2a2a); padding-top: 20px;">
+                <button onclick="saveTheme()">Save Theme</button>
+                <button onclick="resetDefaultTheme()" style="background: #555; color: #fff;">Reset to Default</button>
+                <span id="theme-status" style="font-weight: bold; font-size: 14px;"></span>
+            </div>
+
+        </div>
+    </main>
+</div>
+
+<script src="/js/utils.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/websocket.js"></script>
+<script src="/pages/page-theme.js"></script>
+<script src="/js/app.js"></script>
+
+</body>
+</html>

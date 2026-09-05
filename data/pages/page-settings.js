@@ -1,7 +1,7 @@
 let wifiConfig = { ssid: "ESP32Controller", password: "12345678" };
 
 async function loadWifiConfig() {
-    const url = "/wifi.json?v=" + Date.now();
+    const url = "/config/wifi.json?v=" + Date.now();
     try {
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -99,7 +99,7 @@ function updateResistorDisplay() {
 
 async function loadBatteryConfig() {
     try {
-        const res = await fetch('/battery.json?v=' + Date.now());
+        const res = await fetch('/config/battery.json?v=' + Date.now());
         if (!res.ok) throw new Error('Not found');
         batteryConfig = await res.json();
 

@@ -34,26 +34,30 @@ async function handleDownloadBackup() {
 
     // List of core configuration files to include in full backup
     const configFiles = [
-      "/profiles.json",
-      "/controlMap.json",
-      "/outputMap.json",
-      "/battery.json",
-      "/wifi.json"
+      "/config/profiles.json",
+      "/config/controlMap.json",
+      "/config/outputMap.json",
+      "/config/battery.json",
+      "/config/wifi.json",
+      "/config/theme.json"
     ];
 
     // Scan LittleFS filesystem via HTTP to discover all profile and config JSON files dynamically
     try {
-      const pRes = await fetch("/profiles.json?v=" + Date.now(), { cache: "no-store" });
+      const pRes = await fetch("/config/profiles.json?v=" + Date.now(), { cache: "no-store" });
       if (pRes.ok) {
         const pData = await pRes.json();
+        const fixPath = (p) => (p && !p.startsWith("/config/")) ? "/config" + (p.startsWith("/") ? p : "/" + p) : p;
         if (pData.inputs) {
           Object.values(pData.inputs).forEach(path => {
-            if (path && !configFiles.includes(path)) configFiles.push(path);
+            const fullPath = fixPath(path);
+            if (fullPath && !configFiles.includes(fullPath)) configFiles.push(fullPath);
           });
         }
         if (pData.outputs) {
           Object.values(pData.outputs).forEach(path => {
-            if (path && !configFiles.includes(path)) configFiles.push(path);
+            const fullPath = fixPath(path);
+            if (fullPath && !configFiles.includes(fullPath)) configFiles.push(fullPath);
           });
         }
       }

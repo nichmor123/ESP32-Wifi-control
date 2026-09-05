@@ -33,8 +33,10 @@ async function main() {
     initComputerPage();
     } else if (isIndexPage()) {
     initIndexPage();
-  } else if (isSettingsPage()) {
+    } else if (isSettingsPage()) {
     initSettingsPage();
+  } else if (isThemePage()) {
+    if (typeof initThemePage === 'function') initThemePage();
   }
 }
 
