@@ -1,6 +1,9 @@
 async function main() {
   // Establish WebSocket connection early
   connectWebSocket();
+  
+  // Load profiles directory registry
+  await loadProfilesConfig();
 
   // Initialize page-specific logic
   if (isConfigInputsPage()) {

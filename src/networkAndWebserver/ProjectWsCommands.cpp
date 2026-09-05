@@ -45,20 +45,25 @@ static void handleBinary(AsyncWebSocketClient* client, const uint8_t* data, size
 
 // Handler for saving controlMap.json
 static void handleSaveInputMapping(AsyncWebSocketClient* client, JsonVariantConst data) {
-    if (!data.is<JsonObjectConst>()) { // Check if the variant is actually an object
+    if (!data.is<JsonObjectConst>()) {
         client->text("{\"cmd\":\"save_input_mapping_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"data is not an object\"}}");
         return;
     }
-    JsonObjectConst obj = data.as<JsonObjectConst>(); // Use JsonObjectConst for read-only access
+    JsonObjectConst obj = data.as<JsonObjectConst>();
 
-    // Check if "controlMapText" exists and is a const char*
     if (!obj["controlMapText"].is<const char*>()) {
         client->text("{\"cmd\":\"save_input_mapping_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"controlMapText missing or not string\"}}");
         return;
     }
     const char* mapText = obj["controlMapText"];
+    
+    // Check if saving to a specific profile or the active profile
+    const char* filename = "/controlMap.json";
+    if (obj["profileName"].is<const char*>()) {
+        filename = obj["profileName"];
+    }
 
-    File file = LittleFS.open("/controlMap.json", "w");
+    File file = LittleFS.open(filename, "w");
     if (!file) {
         client->text("{\"cmd\":\"save_input_mapping_err\",\"data\":{\"status\":\"fs_error\"}}");
         return;
@@ -108,8 +113,14 @@ static void handleSaveOutputMapping(AsyncWebSocketClient* client, JsonVariantCon
         return;
     }
     const char* mapText = obj["outputMapText"];
+    
+    // Check if saving to a specific profile or the active profile
+    const char* filename = "/outputMap.json";
+    if (obj["profileName"].is<const char*>()) {
+        filename = obj["profileName"];
+    }
 
-    File file = LittleFS.open("/outputMap.json", "w");
+    File file = LittleFS.open(filename, "w");
     if (!file) {
         client->text("{\"cmd\":\"save_output_mapping_err\",\"data\":{\"status\":\"fs_error\"}}");
         return;
@@ -118,12 +129,83 @@ static void handleSaveOutputMapping(AsyncWebSocketClient* client, JsonVariantCon
     file.close();
 
     client->text("{\"cmd\":\"save_output_mapping_ok\",\"data\":{\"status\":\"ok\"}}");
-    // Add a short delay to ensure the WebSocket message is sent before restarting
-    delay(200);
-    ESP.restart();
+    
+    // Only restart if we overwrote the active output map
+    if (strcmp(filename, "/outputMap.json") == 0) {
+        delay(200);
+        ESP.restart();
+    }
 }
 
-static void handleSaveWifiConfig(AsyncWebSocketClient* client, JsonVariantConst data) {
+static void handleSaveProfilesConfig(AsyncWebSocketClient* client, JsonVariantConst data) {
+    if (!data.is<JsonObjectConst>()) {
+        client->text("{\"cmd\":\"save_profiles_config_err\",\"data\":{\"status\":\"bad_request\"}}");
+        return;
+    }
+    JsonObjectConst obj = data.as<JsonObjectConst>();
+
+    if (!obj["profilesConfigText"].is<const char*>()) {
+        client->text("{\"cmd\":\"save_profiles_config_err\",\"data\":{\"status\":\"bad_request\"}}");
+        return;
+    }
+    const char* mapText = obj["profilesConfigText"];
+
+    File file = LittleFS.open("/profiles.json", "w");
+    if (!file) {
+        client->text("{\"cmd\":\"save_profiles_config_err\",\"data\":{\"status\":\"fs_error\"}}");
+        return;
+    }
+    file.print(mapText);
+    file.close();
+
+    client->text("{\"cmd\":\"save_profiles_config_ok\",\"data\":{\"status\":\"ok\"}}");
+    
+    // Check if we need to delete a file
+    if (obj["deleteFile"].is<const char*>()) {
+        const char* fileToDelete = obj["deleteFile"];
+        if (LittleFS.exists(fileToDelete)) {
+            LittleFS.remove(fileToDelete);
+            Serial.printf("Deleted profile: %s\n", fileToDelete);
+        }
+    }
+
+    // Check if we need to set active files (copy chosen profile to /controlMap.json or /outputMap.json)
+    if (obj["setActiveInput"].is<const char*>()) {
+        const char* sourceFile = obj["setActiveInput"];
+        if (LittleFS.exists(sourceFile)) {
+            File source = LittleFS.open(sourceFile, "r");
+            File dest = LittleFS.open("/controlMap.json", "w");
+            if (source && dest) {
+                while (source.available()) {
+                    dest.write(source.read());
+                }
+            }
+            if (source) source.close();
+            if (dest) dest.close();
+        }
+    }
+
+    if (obj["setActiveOutput"].is<const char*>()) {
+        const char* sourceFile = obj["setActiveOutput"];
+        if (LittleFS.exists(sourceFile)) {
+            File source = LittleFS.open(sourceFile, "r");
+            File dest = LittleFS.open("/outputMap.json", "w");
+            if (source && dest) {
+                while (source.available()) {
+                    dest.write(source.read());
+                }
+            }
+            if (source) source.close();
+            if (dest) dest.close();
+        }
+    }
+
+    if (obj["restart"].is<bool>() && obj["restart"].as<bool>() == true) {
+        delay(200);
+        ESP.restart();
+    }
+}
+    static void handleSaveWifiConfig(AsyncWebSocketClient* client, JsonVariantConst data) {
     if (!data.is<JsonObjectConst>()) {
         client->text("{\"cmd\":\"save_wifi_config_err\",\"data\":{\"status\":\"bad_request\",\"reason\":\"data is not an object\"}}");
         return;
@@ -211,9 +293,14 @@ void RegisterProjectWsCommands(WsCommandServer& ws) {
         handleSaveOutputMapping(client, data);
     });
 
-    ws.on("save_wifi_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        ws.on("save_wifi_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
         (void)doc;
         handleSaveWifiConfig(client, data);
+    });
+
+    ws.on("save_profiles_config", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        (void)doc;
+        handleSaveProfilesConfig(client, data);
     });
 
     ws.on("get_heap", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {

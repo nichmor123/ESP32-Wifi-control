@@ -113,6 +113,101 @@ async function initOutputConfigPage() {
     await loadOutputMap();
     renderOutputCards();
 
+    // Populate profile dropdown
+    const profileSelect = document.getElementById("profileSelect");
+    if (profileSelect) {
+        profileSelect.innerHTML = "";
+        for (const name in profilesConfig.outputs) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            if (profilesConfig.outputs[name] === profilesConfig.active_output) {
+                opt.selected = true;
+            }
+            profileSelect.appendChild(opt);
+        }
+
+        profileSelect.onchange = async () => {
+            const newActiveName = profileSelect.value;
+            const newActiveFile = profilesConfig.outputs[newActiveName];
+            profilesConfig.active_output = newActiveFile;
+            
+            // Try to load the newly selected file
+            try {
+                const res = await fetch(newActiveFile + "?v=" + Date.now(), { cache: "no-store" });
+                if (res.ok) {
+                    outputMap = await res.json();
+                    renderOutputCards();
+                    appendLog(debugEl, `Switched to profile: ${newActiveName}`);
+                }
+            } catch (e) {
+                appendLog(debugEl, `Failed to switch to profile: ${newActiveName}`);
+            }
+        };
+    }
+
+    // Create New Profile
+    const newProfileBtn = document.getElementById('newProfileBtn');
+    if (newProfileBtn) {
+        newProfileBtn.onclick = () => {
+            const name = prompt("Enter a name for the new Output Profile:");
+            if (!name || name.trim() === "") return;
+            const safeName = name.replace(/[^a-zA-Z0-9 _-]/g, '');
+            const filename = `/outputMap_${Date.now()}.json`;
+            
+            profilesConfig.outputs[safeName] = filename;
+            profilesConfig.active_output = filename;
+            
+            // Re-populate and select
+            profileSelect.innerHTML = "";
+            for (const n in profilesConfig.outputs) {
+                const opt = document.createElement('option');
+                opt.value = n;
+                opt.textContent = n;
+                if (profilesConfig.outputs[n] === profilesConfig.active_output) opt.selected = true;
+                profileSelect.appendChild(opt);
+            }
+            appendLog(debugEl, `Created new profile: ${safeName}. Click 'Save Outputs' to finalize.`);
+        };
+    }
+
+    // Delete Profile
+    const deleteProfileBtn = document.getElementById('deleteProfileBtn');
+    if (deleteProfileBtn) {
+        deleteProfileBtn.onclick = () => {
+            const profileSelect = document.getElementById("profileSelect");
+            if (!profileSelect) return;
+            const activeName = profileSelect.value;
+            
+            if (activeName === "Default") {
+                alert("Cannot delete the Default profile.");
+                return;
+            }
+            
+            if (confirm(`Are you sure you want to delete the profile "${activeName}"?`)) {
+                const fileToDelete = profilesConfig.outputs[activeName];
+                delete profilesConfig.outputs[activeName];
+                
+                // Fallback to Default
+                profilesConfig.active_output = profilesConfig.outputs["Default"];
+                
+                // Tell ESP32 to update profiles registry, delete the file, and restart
+                const pMsg = {
+                    cmd: "save_profiles_config",
+                    data: {
+                        profilesConfigText: JSON.stringify(profilesConfig, null, 2),
+                        setActiveOutput: profilesConfig.active_output,
+                        deleteFile: fileToDelete,
+                        restart: true
+                    }
+                };
+                if (wsSendJson(pMsg)) {
+                    appendLog(debugEl, `Deleted profile ${activeName}. Restarting...`);
+                }
+            }
+        };
+    }
+
     const addOutputBtn = document.getElementById('addOutputBtn');
     addOutputBtn.addEventListener('click', () => {
         const newOutput = {
@@ -127,18 +222,84 @@ async function initOutputConfigPage() {
         renderOutputCard(newOutput);
     });
 
-    const saveOutputsBtn = document.getElementById('saveOutputsBtn');
+    // Profile Download
+    const downloadProfileBtn = document.getElementById('downloadOutputProfileBtn');
+    if (downloadProfileBtn) {
+        downloadProfileBtn.addEventListener('click', () => {
+            collectOutputData();
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(outputMap, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "output_profile.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        });
+    }
+
+    // Profile Upload
+    const uploadProfileBtn = document.getElementById('uploadOutputProfileBtn');
+    if (uploadProfileBtn) {
+        uploadProfileBtn.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = readerEvent => {
+                    try {
+                        const content = readerEvent.target.result;
+                        const parsed = JSON.parse(content);
+                        if (parsed.outputs) {
+                            outputMap = parsed;
+                            renderOutputCards();
+                            appendLog(debugEl, "Output Profile loaded! Click Save Outputs to ESP32 to apply.");
+                        } else {
+                            throw new Error("Invalid format");
+                        }
+                    } catch (err) {
+                        alert("Error parsing JSON file. Is this a valid output profile?");
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        });
+    }
+
+        const saveOutputsBtn = document.getElementById('saveOutputsBtn');
     saveOutputsBtn.addEventListener('click', () => {
         collectOutputData();
+
+        const profileSelect = document.getElementById("profileSelect");
+        const activeFile = profileSelect ? profilesConfig.outputs[profileSelect.value] : "/outputMap.json";
+
         const msg = {
             cmd: "save_output_mapping",
-            data: { outputMapText: JSON.stringify(outputMap, null, 2) },
+            data: { 
+                outputMapText: JSON.stringify(outputMap, null, 2),
+                profileName: activeFile
+            },
         };
 
         if (!wsSendJson(msg)) {
             appendLog(debugEl, "Save failed: WebSocket not connected");
             return;
         }
-        appendLog(debugEl, "TX: save_output_mapping");
+
+        // Update profiles config and tell backend to map this as active and restart
+        const pMsg = {
+            cmd: "save_profiles_config",
+            data: {
+                profilesConfigText: JSON.stringify(profilesConfig, null, 2),
+                setActiveOutput: activeFile,
+                restart: true
+            }
+        };
+        wsSendJson(pMsg);
+
+        appendLog(debugEl, `TX: saved mapping to ${activeFile}`);
     });
 }

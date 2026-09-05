@@ -22,8 +22,35 @@ function validateChannelMappings() {
 
   const conflicts = [];
   for (const [ch, sources] of channelToSources.entries()) {
+    // If there is more than 1 source mapped to a channel, we need to check if they are all from the same hardware domain
     if (sources.length > 1) {
-      conflicts.push({ channel: ch, sources });
+      // Group sources by their hardware domain.
+      // Gamepad inputs don't start with 'm_'
+      // Mobile inputs start with 'm_'
+      const hasGamepad = sources.some(s => !s.id.startsWith('m_') && !s.id.startsWith('mix_'));
+      const hasMobile = sources.some(s => s.id.startsWith('m_'));
+      
+      // If a channel has BOTH a physical gamepad input AND a virtual mobile input mapped to it,
+      // it is considered valid, because the user will only be using one device at a time.
+      // However, if there are multiple mobile inputs, or multiple gamepad inputs mapped to it, it is a conflict.
+      
+      let gamepadCount = 0;
+      let mobileCount = 0;
+      let mixCount = 0;
+      
+      for (const s of sources) {
+          if (s.id.startsWith('mix_')) mixCount++;
+          else if (s.id.startsWith('m_')) mobileCount++;
+          else gamepadCount++;
+      }
+      
+      // It is a conflict if:
+      // 1. There are multiple gamepad inputs mapped directly to it
+      // 2. There are multiple mobile inputs mapped directly to it
+      // 3. There are mixes involved alongside direct inputs
+      if (gamepadCount > 1 || mobileCount > 1 || mixCount > 0) {
+        conflicts.push({ channel: ch, sources });
+      }
     }
   }
 
@@ -434,6 +461,160 @@ function initConfigInputsPage() {
     };
   }
 
+  // Populate profile dropdown
+  const profileSelect = document.getElementById("profileSelect");
+  if (profileSelect) {
+      profileSelect.innerHTML = "";
+      for (const name in profilesConfig.inputs) {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          if (profilesConfig.inputs[name] === profilesConfig.active_input) {
+              opt.selected = true;
+          }
+          profileSelect.appendChild(opt);
+      }
+
+      profileSelect.onchange = async () => {
+          const newActiveName = profileSelect.value;
+          const newActiveFile = profilesConfig.inputs[newActiveName];
+          profilesConfig.active_input = newActiveFile;
+          
+          // Try to load the newly selected file
+          try {
+              const res = await fetch(newActiveFile + "?v=" + Date.now(), { cache: "no-store" });
+              if (res.ok) {
+                  controlMap = await res.json();
+                  rerenderAll();
+                  appendLog(debugEl, `Switched to profile: ${newActiveName}`);
+              }
+          } catch (e) {
+              appendLog(debugEl, `Failed to switch to profile: ${newActiveName}`);
+          }
+      };
+  }
+
+  // Create New Profile
+  const newProfileBtn = document.getElementById('newProfileBtn');
+  if (newProfileBtn) {
+      newProfileBtn.onclick = () => {
+          const name = prompt("Enter a name for the new Input Profile:");
+          if (!name || name.trim() === "") return;
+          const safeName = name.replace(/[^a-zA-Z0-9 _-]/g, '');
+          const filename = `/controlMap_${Date.now()}.json`;
+          
+          profilesConfig.inputs[safeName] = filename;
+          profilesConfig.active_input = filename;
+          
+          // Re-populate and select
+          profileSelect.innerHTML = "";
+          for (const n in profilesConfig.inputs) {
+              const opt = document.createElement('option');
+              opt.value = n;
+              opt.textContent = n;
+              if (profilesConfig.inputs[n] === profilesConfig.active_input) opt.selected = true;
+              profileSelect.appendChild(opt);
+          }
+          appendLog(debugEl, `Created new profile: ${safeName}. Click 'Save Mapping' to finalize.`);
+      };
+  }
+  // Delete Profile
+  const deleteProfileBtn = document.getElementById('deleteProfileBtn');
+  if (deleteProfileBtn) {
+      deleteProfileBtn.onclick = () => {
+          const profileSelect = document.getElementById("profileSelect");
+          if (!profileSelect) return;
+          const activeName = profileSelect.value;
+          
+          if (activeName === "Default") {
+              alert("Cannot delete the Default profile.");
+              return;
+          }
+          
+          if (confirm(`Are you sure you want to delete the profile "${activeName}"?`)) {
+              const fileToDelete = profilesConfig.inputs[activeName];
+              delete profilesConfig.inputs[activeName];
+              
+              // Fallback to Default
+              profilesConfig.active_input = profilesConfig.inputs["Default"];
+              
+              // Tell ESP32 to update profiles registry, delete the file, and restart
+              const pMsg = {
+                  cmd: "save_profiles_config",
+                  data: {
+                      profilesConfigText: JSON.stringify(profilesConfig, null, 2),
+                      setActiveInput: profilesConfig.active_input,
+                      deleteFile: fileToDelete,
+                      restart: true
+                  }
+              };
+              if (wsSendJson(pMsg)) {
+                  appendLog(debugEl, `Deleted profile ${activeName}. Restarting...`);
+              }
+          }
+      };
+  }
+
+  const downloadProfileBtn = document.getElementById('downloadProfileBtn');
+  if (downloadProfileBtn) {
+    downloadProfileBtn.onclick = () => {
+      collectMixesData();
+      const list = [];
+      for (const src of SOURCES) {
+        const ch = sourceToChannel.get(src.id);
+        if (typeof ch !== "number") continue;
+        const xform = sourceToXform.get(src.id);
+        const entry = { source: src.id, ch };
+        if (xform) entry.xform = xform;
+        list.push(entry);
+      }
+      list.sort((a, b) => a.ch - b.ch || a.source.localeCompare(b.source));
+      
+      const exportMap = JSON.parse(JSON.stringify(controlMap));
+      exportMap.inputs.map_to_channels = list;
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportMap, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "input_profile.json");
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    };
+  }
+
+  // Profile Upload
+  const uploadProfileBtn = document.getElementById('uploadProfileBtn');
+  if (uploadProfileBtn) {
+    uploadProfileBtn.onclick = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json';
+      input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = readerEvent => {
+          try {
+            const content = readerEvent.target.result;
+            const parsed = JSON.parse(content);
+            if (parsed.inputs && parsed.inputs.sources) {
+              controlMap = parsed;
+              rerenderAll();
+              appendLog(debugEl, "Profile loaded successfully! Click Save Mapping to ESP32 to apply.");
+            } else {
+              throw new Error("Invalid format");
+            }
+          } catch (err) {
+            alert("Error parsing JSON file. Is this a valid input profile?");
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    };
+  }
+
   // Tab switching logic
   const tabButtons = document.querySelectorAll('.tab-button');
   const tabPanes = document.querySelectorAll('.tab-pane');
@@ -448,10 +629,60 @@ function initConfigInputsPage() {
     });
   });
 
-  // Override save button to include mixes
+    // Override save button to include mixes
   if (saveBtn) {
-    const originalSave = saveBtn.onclick;
-    saveBtn.onclick = () => { collectMixesData(); originalSave(); };
+    saveBtn.onclick = () => {
+      collectMixesData();
+
+      if (!validateChannelMappings()) {
+        appendLog(debugEl, "Save blocked: Multiple inputs are assigned to the same channel.");
+        return;
+      }
+
+      const list = [];
+
+      for (const src of SOURCES) {
+        const ch = sourceToChannel.get(src.id);
+        if (typeof ch !== "number") continue;
+
+        const xform = sourceToXform.get(src.id);
+        const entry = { source: src.id, ch };
+        if (xform) entry.xform = xform;
+        list.push(entry);
+      }
+
+      list.sort((a, b) => a.ch - b.ch || a.source.localeCompare(b.source));
+      controlMap.inputs.map_to_channels = list;
+
+      const profileSelect = document.getElementById("profileSelect");
+      const activeFile = profileSelect ? profilesConfig.inputs[profileSelect.value] : "/controlMap.json";
+
+      const msg = {
+        cmd: "save_input_mapping",
+        data: { 
+            controlMapText: JSON.stringify(controlMap, null, 2),
+            profileName: activeFile
+        },
+      };
+
+      if (!wsSendJson(msg)) {
+        appendLog(debugEl, "Save failed: WebSocket not connected");
+        return;
+      }
+      
+      // Also update profiles config so we know which file is currently active
+      const pMsg = {
+          cmd: "save_profiles_config",
+          data: {
+              profilesConfigText: JSON.stringify(profilesConfig, null, 2),
+              setActiveInput: activeFile,
+              restart: false
+          }
+      };
+      wsSendJson(pMsg);
+
+      appendLog(debugEl, `TX: saved mapping to ${activeFile}`);
+    };
   }
 
   if (startBtn) {

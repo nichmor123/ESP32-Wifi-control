@@ -34,15 +34,27 @@
       <h1>Config: Outputs</h1>
       <p class="subtitle">Configure how channels map to hardware outputs</p>
       
-      <div class="status" id="status">Disconnected</div>
+            <div class="status" id="status">Disconnected</div>
+
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px; align-items: center;">
+        <label for="profileSelect">Active Profile:</label>
+        <select id="profileSelect" style="min-width: 150px;"></select>
+        <button id="newProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">+ New</button>
+        <button id="deleteProfileBtn" style="background: #ff4444; color: #fff; padding: 6px 12px; font-size: 14px; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+      </div>
       
       <div class="grid" id="outputGrid">
         <!-- Output cards will be generated here -->
       </div>
 
+                        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+        <button id="downloadOutputProfileBtn" style="background: #444; color: #fff;">Download File</button>
+        <button id="uploadOutputProfileBtn" style="background: #444; color: #fff;">Upload File</button>
+      </div>
+
       <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
         <button id="addOutputBtn">+ Add Output</button>
-        <button id="saveOutputsBtn">Save Outputs</button>
+        <button id="saveOutputsBtn">Save Outputs to ESP32</button>
       </div>
 
       <div class="log" id="debug"></div>

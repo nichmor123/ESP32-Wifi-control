@@ -1,3 +1,25 @@
+let profilesConfig = {
+  active_input: "/controlMap.json",
+  active_output: "/outputMap.json",
+  inputs: { "Default": "/controlMap.json" },
+  outputs: { "Default": "/outputMap.json" }
+};
+
+async function loadProfilesConfig() {
+  try {
+    const res = await fetch("/profiles.json?v=" + Date.now(), { cache: "no-store" });
+    if (res.ok) {
+        const data = await res.json();
+        profilesConfig = { ...profilesConfig, ...data };
+    }
+  } catch (e) {
+      // profiles.json might not exist yet
+  }
+  // Ensure arrays exist in case they were empty
+  if (!profilesConfig.inputs) profilesConfig.inputs = {"Default": "/controlMap.json"};
+  if (!profilesConfig.outputs) profilesConfig.outputs = {"Default": "/outputMap.json"};
+}
+
 // DOM element getters
 // Optional elements (exist on index.html)
 const statusEl = document.getElementById("status");
