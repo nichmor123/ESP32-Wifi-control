@@ -12,14 +12,24 @@ public:
 
 private:
     struct OutputConfig {
-        enum Type { UNKNOWN, ESC, SERVO };
-        Type type = UNKNOWN;
-        uint8_t sourceChannel = 0;
-        float inputRange[2] = {0.0f, 0.0f};
-        float outputRange[2] = {0.0f, 0.0f};
-        uint8_t pin = 0;
-        uint8_t pwmChannel = 0;
-    };
+            enum Type { UNKNOWN, ESC, SERVO, HBRIDGE };
+            Type type = UNKNOWN;
+            uint8_t sourceChannel = 0;
+            float inputRange[2] = {0.0f, 0.0f};
+            float outputRange[2] = {0.0f, 0.0f};
+            uint8_t pin = 0;          // PWM pin (ESC/Servo) or IN1 pin (HBridge)
+            uint8_t pin2 = 0;         // IN2 pin (HBridge)
+            uint8_t pwmChannel = 0;   // LEDC channel for pin / IN1
+            uint8_t pwmChannel2 = 0;  // LEDC channel for IN2
+        };
+
+    #if defined(SOC_LEDC_CHANNEL_NUM)
+    static constexpr uint8_t MAX_PWM_CHANNELS = SOC_LEDC_CHANNEL_NUM;
+#elif defined(CONFIG_IDF_TARGET_ESP32S3) || defined(ESP32S3)
+    static constexpr uint8_t MAX_PWM_CHANNELS = 8;
+#else
+    static constexpr uint8_t MAX_PWM_CHANNELS = 16;
+#endif
 
     static constexpr int MAX_OUTPUTS = 16;
     OutputConfig _outputs[MAX_OUTPUTS];

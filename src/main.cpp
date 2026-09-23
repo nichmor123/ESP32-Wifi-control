@@ -1,12 +1,14 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 
+#include "system/BootManager.h"
 #include "networkAndWebserver/NetworkManager.h"
 #include "outputs/OutputManager.h"
 #include "sensors/BatteryMonitor.h"
 #include "led/StatusLedManager.h"
 #include "serial/SerialCommandHandler.h"
 
+BootManager bootManager;
 NetworkManager networkManager;
 OutputManager outputManager;
 BatteryMonitor batteryMonitor;
@@ -29,32 +31,37 @@ static uint32_t lastPrintMs   = 0;
 void setup() {
     Serial.begin(921600);
 
-    // Start LED manager
+    // 1. Initialize Boot & Restart Monitor first
+    bootManager.begin();
+
+    // 2. Start LED manager
     statusLed.begin();
 
-    // Initialize the filesystem first so configs & static files are available
-    if (!LittleFS.begin(true)) {
-        Serial.println("LittleFS Mount Failed");
-    }
-
-    // Initialize network, AP/STA, mDNS, routes, web server, and WebSocket commands
+    // 3. Initialize network, AP/STA, mDNS, web server, and WebSocket commands
     if (!networkManager.begin(&statusLed)) {
-        Serial.println("Network initialization failed, restarting...");
+        bootManager.log("Network initialization failed, restarting...");
         delay(2000);
         ESP.restart();
     }
 
-    outputManager.begin();
-    batteryMonitor.begin();
+    // 4. Initialize hardware outputs ONLY if not in Safe Mode
+    if (bootManager.isSafeMode()) {
+        bootManager.log("[SAFE MODE ACTIVE] Output drivers bypassed. Web server running for recovery.");
+    } else {
+        outputManager.begin();
+    }
 
-    // Start Serial command handler
+    batteryMonitor.begin();
     serialHandler.begin();
 
-    Serial.println("Setup complete");
+    bootManager.log("Setup complete.");
 }
 
 void loop() {
     const uint32_t now = millis();
+
+    // Track uptime stability for BootManager
+    bootManager.update();
 
     // Process incoming serial CLI commands
     serialHandler.update();
@@ -74,8 +81,8 @@ void loop() {
     if ((uint32_t)(now - lastControlMs) >= CONTROL_DT_MS) {
         lastControlMs = now;
 
-        if (!isRxActive) {
-            // FAILSAFE: set outputs to a safe state
+        if (bootManager.isSafeMode() || !isRxActive) {
+            // FAILSAFE / SAFE MODE: keep outputs halted
             outputManager.halt();
         } else {
             // NORMAL CONTROL: update outputs from channel data

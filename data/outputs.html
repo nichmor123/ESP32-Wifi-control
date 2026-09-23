@@ -40,6 +40,7 @@
       <p class="subtitle">Configure how channels map to hardware outputs</p>
       
       <div class="status" id="status">Disconnected</div>
+      <div id="boardBadge" style="margin-top: 10px; font-weight: bold; color: var(--accent-color); font-size: 14px;">Board: Detecting Hardware...</div>
 
       <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px; align-items: center;">
         <label for="profileSelect">Active Profile:</label>
@@ -48,17 +49,57 @@
         <button id="newProfileBtn" style="background: #2a2a2a; color: #fff; padding: 6px 12px; font-size: 14px;">+ New</button>
         <button id="deleteProfileBtn" style="background: #ff4444; color: #fff; padding: 6px 12px; font-size: 14px; border:none; border-radius:4px; cursor:pointer;">Delete</button>
       </div>
+
+      <!-- Pin Group Timer Isolation & Mixed Outputs Collapsible Section -->
+      <details class="details-box" style="margin-top: 14px;">
+        <summary style="cursor: pointer; font-weight: bold; color: var(--accent-color); font-size: 16px; padding: 4px 0;">
+          Pin Timer Groups & Output Type Mixing Rules (ESCs vs H-Bridges)
+        </summary>
+        <div style="margin-top: 12px; font-size: 14px; line-height: 1.6; text-align: left;">
+    
+          <h3 style="color: var(--accent-color); margin-bottom: 6px; font-size: 15px;">1. LEDC Hardware Timer Grouping Principle</h3>
+          <p style="margin: 0 0 10px 0; opacity: 0.9;">
+            The ESP32 hardware LEDC PWM module binds channels to shared internal hardware timers. When mixing <strong>ESCs/Servos (50 Hz)</strong> and <strong>H-Bridges (20 kHz)</strong>, assign pins in contiguous groups so each group is dedicated to either all 50 Hz outputs or all 20 kHz outputs.
+          </p>
+
+          <div id="wroomPinsGroup">
+            <h3 style="color: var(--accent-color); margin-bottom: 6px; font-size: 15px;">2. Pin Groups for ESP32-WROOM-32</h3>
+            <p style="margin: 0 0 6px 0; opacity: 0.9;">Each group below must be controlled by <strong>ALL Servos/ESCs</strong> or <strong>ALL H-Bridges</strong>:</p>
+            <ul style="margin: 0 0 12px 20px; padding: 0;">
+              <li><strong>Group 1 Pins (GPIO 16, 17, 18, 19):</strong> All ESCs/Servos OR up to 2x H-Bridges.</li>
+              <li><strong>Group 2 Pins (GPIO 21, 22, 23, 25):</strong> All ESCs/Servos OR up to 2x H-Bridges.</li>
+              <li><strong>Group 3 Pins (GPIO 26, 27, 32, 33):</strong> All ESCs/Servos OR up to 2x H-Bridges.</li>
+            </ul>
+          </div>
+
+          <div id="s3PinsGroup">
+            <h3 style="color: var(--accent-color); margin-bottom: 6px; font-size: 15px;">2. Pin Groups for ESP32-S3</h3>
+            <p style="margin: 0 0 6px 0; opacity: 0.9;">Each group below must be controlled by <strong>ALL Servos/ESCs</strong> or <strong>ALL H-Bridges</strong>:</p>
+            <ul style="margin: 0 0 12px 20px; padding: 0;">
+              <li><strong>Group 1 Pins (GPIO 1, 2, 3, 4):</strong> All ESCs/Servos OR up to 2x H-Bridges.</li>
+              <li><strong>Group 2 Pins (GPIO 5, 6, 7, 8):</strong> All ESCs/Servos OR up to 2x H-Bridges.</li>
+              <li><strong>Group 3 Pins (GPIO 9, 10, 11, 12):</strong> All ESCs/Servos OR up to 2x H-Bridges.</li>
+              <li><strong>Group 4 Pins (GPIO 13, 14, 15, 16):</strong> All ESCs/Servos OR up to 2x H-Bridges.</li>
+            </ul>
+          </div>
+
+                <h3 style="color: var(--accent-color); margin-bottom: 6px; font-size: 15px;">4. Hardware & Backend Handling</h3>
+                <p style="margin: 0; opacity: 0.9;">
+                  The C++ backend (<code>OutputManager</code>) automatically isolates the 50 Hz PWM signals (ESCs/Servos) and 20 kHz signals (H-Bridges) onto separate hardware timers. Following the pin groups above guarantees that hardware channels operate without frequency collisions.
+                </p>
+              </div>
+            </details>
       
-      <div class="grid" id="outputGrid">
-        <!-- Output cards will be generated here -->
-      </div>
+            <div class="grid" id="outputGrid">
+              <!-- Output cards will be generated here -->
+            </div>
 
-      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
-        <button id="downloadOutputProfileBtn" style="background: #444; color: #fff;">Download File</button>
-        <button id="uploadOutputProfileBtn" style="background: #444; color: #fff;">Upload File</button>
-      </div>
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+              <button id="downloadOutputProfileBtn" style="background: #444; color: #fff;">Download File</button>
+              <button id="uploadOutputProfileBtn" style="background: #444; color: #fff;">Upload File</button>
+            </div>
 
-            <div class="warning-box" style="margin-top: 20px;">
+      <div class="warning-box" style="margin-top: 20px;">
         <strong>Note:</strong> Saving output mapping configuration will write your changes to the ESP32 filesystem and automatically restart the controller to reinitialize hardware pins and output PWM signals.
       </div>
 

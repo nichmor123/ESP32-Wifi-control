@@ -1,4 +1,24 @@
 let outputMap = null;
+let currentBoardInfo = null;
+
+function handleBoardInfoResponse(data) {
+    currentBoardInfo = data;
+    const badgeEl = document.getElementById("boardBadge");
+    const wroomGroupEl = document.getElementById("wroomPinsGroup");
+    const s3GroupEl = document.getElementById("s3PinsGroup");
+
+    if (badgeEl && data) {
+        badgeEl.textContent = `Board Detected: ${data.chipModel} | Available PWM Channels: ${data.maxPwmChannels}`;
+    }
+
+    if (data && data.chipModel && data.chipModel.includes("S3")) {
+        if (wroomGroupEl) wroomGroupEl.style.display = "none";
+        if (s3GroupEl) s3GroupEl.style.display = "block";
+    } else if (data && data.chipModel) {
+        if (wroomGroupEl) wroomGroupEl.style.display = "block";
+        if (s3GroupEl) s3GroupEl.style.display = "none";
+    }
+}
 
 async function loadOutputMap() {
     const url = "/config/outputMap.json?v=" + Date.now();
@@ -25,6 +45,23 @@ function renderOutputCard(output) {
     card.dataset.id = output.id;
 
     const isServo = output.type === 'servo';
+    const isHBridge = output.type === 'hbridge';
+
+    let pinFieldsHtml = '';
+    if (isHBridge) {
+        pinFieldsHtml = `
+            <label>IN1 Pin:</label>
+            <input type="number" class="pin-in1-input" value="${output.pins?.in1 ?? output.pins?.pwm ?? ''}" placeholder="GPIO #">
+
+            <label>IN2 Pin:</label>
+            <input type="number" class="pin-in2-input" value="${output.pins?.in2 ?? ''}" placeholder="GPIO #">
+        `;
+    } else {
+        pinFieldsHtml = `
+            <label>PWM Pin:</label>
+            <input type="number" class="pin-input" value="${output.pins?.pwm ?? output.pins?.in1 ?? ''}" placeholder="GPIO #">
+        `;
+    }
 
     card.innerHTML = `
         <div class="card-header">
@@ -34,15 +71,15 @@ function renderOutputCard(output) {
         <div class="form-grid">
             <label>Type:</label>
             <select class="type-select">
-                <option value="esc" ${!isServo ? 'selected' : ''}>ESC (Brushed)</option>
+                <option value="esc" ${(!isServo && !isHBridge) ? 'selected' : ''}>ESC (Brushed/Brushless PWM)</option>
                 <option value="servo" ${isServo ? 'selected' : ''}>Servo</option>
+                <option value="hbridge" ${isHBridge ? 'selected' : ''}>H-Bridge Motor Driver (IN1 / IN2)</option>
             </select>
 
             <label>Source Channel:</label>
             <select class="channel-select">${buildChannelOptions(output.sourceChannel, false)}</select>
 
-            <label>PWM Pin:</label>
-            <input type="number" class="pin-input" value="${output.pins?.pwm || ''}" placeholder="GPIO #">
+            ${pinFieldsHtml}
 
             <label>Input Range:</label>
             <div class="range-inputs">
@@ -71,15 +108,21 @@ function renderOutputCard(output) {
     card.querySelector('.type-select').addEventListener('change', (e) => {
         const newType = e.target.value;
         output.type = newType;
-        // When changing type, reset ranges to sensible defaults
+        // When changing type, reset ranges and pins to sensible defaults
         if (newType === 'servo') {
             output.inputRange = [0, 1];
             output.outputRange = [0, 180];
+            output.pins = { pwm: output.pins?.pwm || output.pins?.in1 || '' };
+        } else if (newType === 'hbridge') {
+            output.inputRange = [-1, 1];
+            output.outputRange = [-100, 100];
+            output.pins = { in1: output.pins?.in1 || output.pins?.pwm || '', in2: output.pins?.in2 || '' };
         } else { // esc
             output.inputRange = [-1, 1];
             output.outputRange = [-100, 100];
+            output.pins = { pwm: output.pins?.pwm || output.pins?.in1 || '' };
         }
-        renderOutputCards(); // Re-render to show/hide fields and update defaults
+        renderOutputCards();
     });
 }
 
@@ -89,11 +132,28 @@ function collectOutputData() {
         const id = card.dataset.id;
         const type = card.querySelector('.type-select').value;
         const sourceChannel = parseInt(card.querySelector('.channel-select').value, 10);
-        const pwmPin = parseInt(card.querySelector('.pin-input').value, 10);
         const inMin = parseFloat(card.querySelector('.input-range-min').value);
         const inMax = parseFloat(card.querySelector('.input-range-max').value);
         const outMin = parseFloat(card.querySelector('.output-range-min').value);
         const outMax = parseFloat(card.querySelector('.output-range-max').value);
+
+        let pins = {};
+        if (type === 'hbridge') {
+            const in1El = card.querySelector('.pin-in1-input');
+            const in2El = card.querySelector('.pin-in2-input');
+            const in1 = in1El ? parseInt(in1El.value, 10) : NaN;
+            const in2 = in2El ? parseInt(in2El.value, 10) : NaN;
+            pins = {
+                in1: isNaN(in1) ? '' : in1,
+                in2: isNaN(in2) ? '' : in2
+            };
+        } else {
+            const pwmEl = card.querySelector('.pin-input');
+            const pwm = pwmEl ? parseInt(pwmEl.value, 10) : NaN;
+            pins = {
+                pwm: isNaN(pwm) ? '' : pwm
+            };
+        }
 
         newOutputs.push({
             id,
@@ -101,7 +161,7 @@ function collectOutputData() {
             sourceChannel,
             inputRange: [inMin, inMax],
             outputRange: [outMin, outMax],
-            pins: { pwm: pwmPin }
+            pins
         });
     });
     outputMap.outputs = newOutputs;
@@ -112,6 +172,11 @@ async function initOutputsPage() {
 
     await loadOutputMap();
     renderOutputCards();
+
+    // Fetch board model info
+    setTimeout(() => {
+        wsSendJson({ cmd: "get_board_info" });
+    }, 300);
 
     // Populate profile dropdown
     const profileSelect = document.getElementById("profileSelect");
@@ -216,6 +281,8 @@ async function initOutputsPage() {
         };
     }
 
+        
+
     const addOutputBtn = document.getElementById('addOutputBtn');
     addOutputBtn.addEventListener('click', () => {
         const newOutput = {
@@ -277,9 +344,68 @@ async function initOutputsPage() {
         });
     }
 
+        function validateTimerPinGroups(outputs) {
+    const wroomGroups = [
+        [16, 17, 18, 19],
+        [21, 22, 23, 25],
+        [26, 27, 32, 33]
+    ];
+    const s3Groups = [
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]
+    ];
+
+    const isS3 = currentBoardInfo && currentBoardInfo.chipModel && currentBoardInfo.chipModel.includes("S3");
+    const activeGroups = isS3 ? s3Groups : wroomGroups;
+    const warnings = [];
+
+    activeGroups.forEach((group) => {
+        let has50Hz = false;
+        let has20kHz = false;
+        let pins50Hz = [];
+        let pins20kHz = [];
+
+        outputs.forEach(out => {
+            const isHBridge = out.type === 'hbridge';
+            const pins = isHBridge ? [out.pins?.in1, out.pins?.in2] : [out.pins?.pwm];
+
+            pins.forEach(p => {
+                const pinNum = parseInt(p, 10);
+                if (!isNaN(pinNum) && group.includes(pinNum)) {
+                    if (isHBridge) {
+                        has20kHz = true;
+                        pins20kHz.push(pinNum);
+                    } else {
+                        has50Hz = true;
+                        pins50Hz.push(pinNum);
+                    }
+                }
+            });
+        });
+
+        if (has50Hz && has20kHz) {
+            warnings.push(`Group [${group.join(', ')}]: Pins ${pins50Hz.join(', ')} (50Hz ESC/Servo) and Pins ${pins20kHz.join(', ')} (20kHz H-Bridge) share the same timer pin group!`);
+        }
+    });
+
+    return warnings;
+}
+
         const saveOutputsBtn = document.getElementById('saveOutputsBtn');
     saveOutputsBtn.addEventListener('click', () => {
         collectOutputData();
+
+        const timerWarnings = validateTimerPinGroups(outputMap.outputs);
+        if (timerWarnings.length > 0) {
+            const confirmMsg = "WARNING: Frequency Timer Collision Detected!\n\n" +
+                timerWarnings.join("\n") +
+                "\n\nSaving 50Hz (Servos/ESCs) and 20kHz (H-Bridges) on the same hardware timer group can cause frequency conflicts or erratic motor behavior.\n\nDo you still want to proceed and save?";
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+        }
 
         const profileSelect = document.getElementById("profileSelect");
         const activeFile = profileSelect ? profilesConfig.outputs[profileSelect.value] : "/config/outputMap.json";

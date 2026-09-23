@@ -1,4 +1,24 @@
 let batteryConfig = null;
+let batteryBoardInfo = null;
+
+function handleBoardInfoResponse(data) {
+    batteryBoardInfo = data;
+    const badgeEl = document.getElementById("boardBadge");
+    const wroomGroup = document.getElementById("wroomAdcGroup");
+    const s3Group = document.getElementById("s3AdcGroup");
+
+    if (badgeEl && data) {
+        badgeEl.textContent = `Board Detected: ${data.chipModel}`;
+    }
+
+    if (data && data.chipModel && data.chipModel.includes("S3")) {
+        if (wroomGroup) wroomGroup.style.display = "none";
+        if (s3Group) s3Group.style.display = "block";
+    } else if (data && data.chipModel) {
+        if (wroomGroup) wroomGroup.style.display = "block";
+        if (s3Group) s3Group.style.display = "none";
+    }
+}
 
 const E24_VALUES = [
     1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1
@@ -140,10 +160,24 @@ function initBatteryPage() {
     riskCheckbox.addEventListener('change', updateUI);
     enableCheckbox.addEventListener('change', updateUI);
 
+        // Request board model info
+    setTimeout(() => {
+        wsSendJson({ cmd: "get_board_info" });
+    }, 300);
+
     saveButton.addEventListener('click', () => {
         const pin = parseInt(document.getElementById('pin-input').value, 10);
-        if (!pin || pin < 0) {
+        if (isNaN(pin) || pin < 0) {
             alert('Please enter a valid GPIO pin number.');
+            return;
+        }
+
+        // Board-specific ADC2 WiFi restriction check
+        const isS3 = batteryBoardInfo && batteryBoardInfo.chipModel && batteryBoardInfo.chipModel.includes("S3");
+        const wroomAdc2Pins = [0, 2, 4, 12, 13, 14, 15, 25, 26, 27];
+
+        if (!isS3 && wroomAdc2Pins.includes(pin)) {
+            alert(`WARNING: GPIO ${pin} is an ADC2 pin on ESP32-WROOM-32! ADC2 pins CANNOT be read while WiFi is active. Please use an ADC1 pin (e.g., GPIO 34, 35, 32, 33, 36, 39).`);
             return;
         }
 

@@ -29,23 +29,52 @@
   </aside>
 
   <!-- Main Content -->
-  <main class="page">
+    <main class="page">
 
     <div class="card" style="max-width: 860px;">
 
       <h1>Troubleshooting & Diagnostics</h1>
-      <p class="subtitle">System tools and network debugging.</p>
+      <p class="subtitle">System health, restart monitoring, and serial boot logs.</p>
       
       <div class="status" id="status">Disconnected</div>
+
+      <!-- Safe Mode & Boot Monitor Status -->
+      <div id="safeModeCard" style="margin-top: 16px; padding: 16px; border-radius: 8px; background: #141414; border: 1px solid var(--border-color); text-align: left;">
+        <h3 style="margin-top: 0; color: var(--accent-color); font-size: 16px;">Boot & Crash Monitor Status</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px;">
+          <div><strong>System Mode:</strong> <span id="systemModeBadge" style="font-weight: bold; color: #2ecc71;">NORMAL MODE</span></div>
+          <div><strong>Boot Crash Counter:</strong> <span id="bootCountVal">0</span> / 3</div>
+          <div><strong>System Uptime:</strong> <span id="uptimeVal">0s</span></div>
+        </div>
+        <div id="safeModeDesc" style="margin-top: 10px; font-size: 13px; opacity: 0.8;">
+          If the controller restarts 3 times consecutively within 15 seconds of boot, it enters Safe Mode and suspends motor outputs to prevent crash loops.
+        </div>
+        <div style="margin-top: 12px;">
+          <button id="clearSafeModeBtn" style="background: #00ffcc; color: #000; font-weight: bold; padding: 6px 14px;">Clear Crash Counter & Reset</button>
+        </div>
+      </div>
       
-      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 14px;">
+      <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top: 18px;">
         <button id="pingBtn">Ping</button>
         <button id="getHeapBtn">Check Memory (Heap)</button>
         <button id="restartEspBtn" style="background-color: #ff4444; color: white;">Restart ESP32</button>
       </div>
 
-      <div class="log" id="systemInfo" style="margin-top: 20px; min-height: 50px;">
+      <div class="log" id="systemInfo" style="margin-top: 16px; min-height: 40px;">
          <!-- Heap responses will appear here -->
+      </div>
+
+      <!-- Boot Logs Viewer Section -->
+      <div style="margin-top: 24px; text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <h3 style="margin: 0; color: var(--accent-color); font-size: 16px;">Serial Boot Logs</h3>
+          <div>
+            <button id="viewCurrentLogBtn" style="background: var(--accent-color); color: #000; font-weight: bold; padding: 4px 10px; font-size: 13px;">Current Boot Log</button>
+            <button id="viewLastLogBtn" style="background: #333; color: #fff; padding: 4px 10px; font-size: 13px;">Last Boot Log</button>
+            <button id="refreshLogsBtn" style="background: #2a2a2a; color: #fff; padding: 4px 10px; font-size: 13px;">Refresh</button>
+          </div>
+        </div>
+        <pre id="bootLogViewer" style="background: #000; color: #00ffcc; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px; max-height: 350px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin-top: 10px; border: 1px solid var(--border-color);">Loading boot logs...</pre>
       </div>
 
       <div class="log" id="log" style="margin-top: 20px;"></div>

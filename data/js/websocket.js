@@ -54,9 +54,11 @@ function connectWebSocket() {
   ws = new WebSocket(protocol + location.host + "/ws");
   ws.binaryType = "arraybuffer";
 
-  ws.onopen = () => {
+    ws.onopen = () => {
     if (statusEl) setStatus(statusEl, "Connected", "#00ff00");
     appendLog(logEl || debugEl, "WebSocket connected");
+    // Check system safe mode status on connect
+    wsSendJson({ cmd: "get_system_logs" });
   };
 
   ws.onclose = () => {
@@ -81,8 +83,27 @@ function connectWebSocket() {
         return;
     }
 
-    // Now we have a parsed message `msg`
-    if (msg.cmd === 'battery_update') {
+    function checkGlobalSafeModeBanner(isSafeMode, bootCount) {
+            let banner = document.getElementById('globalSafeModeBanner');
+            if (isSafeMode) {
+                if (!banner) {
+                    banner = document.createElement('div');
+                    banner.id = 'globalSafeModeBanner';
+                    banner.style.cssText = 'background: #ff4444; color: #fff; text-align: center; padding: 10px; font-weight: bold; position: sticky; top: 0; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,0.5); font-size: 14px;';
+                    document.body.prepend(banner);
+                }
+                banner.innerHTML = `⚠️ SAFE MODE ACTIVE (${bootCount || 3} Consecutive Crash Restarts Detected). Motor Outputs are Bypassed. <a href="/troubleshooting" style="color:#00ffcc; margin-left: 10px; text-decoration: underline;">Open Troubleshooting & Logs</a>`;
+            } else if (banner) {
+                banner.remove();
+            }
+        }
+
+        if (msg.data && typeof msg.data.isSafeMode === 'boolean') {
+            checkGlobalSafeModeBanner(msg.data.isSafeMode, msg.data.bootCount);
+        }
+
+        // Now we have a parsed message `msg`
+        if (msg.cmd === 'battery_update') {
         const { voltage, percentage } = msg.data;
         document.querySelectorAll('#battery-indicator').forEach(indicator => {
             if (indicator.style.display === 'none') {
@@ -103,6 +124,11 @@ function connectWebSocket() {
             else if (percentage > 20) barEl?.classList.add('yellow');
             else barEl?.classList.add('red');
         });
+    } else if (msg.cmd === 'board_info_response') {
+        if (typeof handleBoardInfoResponse === 'function') {
+            handleBoardInfoResponse(msg.data);
+        }
+        if (logTarget) appendLog(logTarget, "RX: board_info_response");
     } else {
         // Log all other commands
         if (logTarget) {

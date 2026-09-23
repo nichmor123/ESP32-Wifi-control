@@ -1,3 +1,14 @@
+// Suppress harmless browser extension message channel errors
+window.addEventListener("unhandledrejection", (event) => {
+  if (
+    event.reason &&
+    typeof event.reason.message === "string" &&
+    event.reason.message.includes("A listener indicated an asynchronous response")
+  ) {
+    event.preventDefault();
+  }
+});
+
 let profilesConfig = {
   active_input: "/config/controlMap.json",
   active_output: "/config/outputMap.json",

@@ -1,8 +1,11 @@
 #include "ProjectWsCommands.h"
 #include "WsCommandServer.h"
+#include "system/BootManager.h"
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <LittleFS.h>
+
+extern BootManager bootManager;
 
 // --- Global state for channel data ---
 static ChannelBus g_channelBus;
@@ -319,7 +322,63 @@ static void handleRestoreBackup(AsyncWebSocketClient* client, JsonVariantConst d
         client->text("{\"cmd\":\"save_theme_config_ok\",\"data\":{\"status\":\"ok\"}}");
     }
 
-// --- Diagnostic Handlers ---
+// --- Diagnostic & Board Handlers ---
+static void handleGetBoardInfo(AsyncWebSocketClient* client) {
+    JsonDocument doc;
+    doc["cmd"] = "board_info_response";
+    JsonObject data = doc["data"].to<JsonObject>();
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3) || defined(ESP32S3)
+    data["chipModel"] = "ESP32-S3";
+    data["maxPwmChannels"] = 8;
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(ESP32C3)
+    data["chipModel"] = "ESP32-C3";
+    data["maxPwmChannels"] = 6;
+#else
+    data["chipModel"] = "ESP32 (WROOM-32)";
+    data["maxPwmChannels"] = 16;
+#endif
+
+    data["cpuFreqMhz"] = ESP.getCpuFreqMHz();
+    data["heap"] = ESP.getFreeHeap();
+
+    String output;
+    serializeJson(doc, output);
+    client->text(output.c_str());
+}
+
+static void handleGetSystemLogs(AsyncWebSocketClient* client) {
+    JsonDocument doc;
+    doc["cmd"] = "system_logs_response";
+    JsonObject data = doc["data"].to<JsonObject>();
+
+    data["isSafeMode"] = bootManager.isSafeMode();
+    data["bootCount"] = bootManager.getBootCount();
+    data["uptimeMs"] = millis();
+    data["currentLog"] = bootManager.getCurrentLog();
+    data["lastBootLog"] = bootManager.getLastBootLog();
+
+    String output;
+    serializeJson(doc, output);
+    client->text(output.c_str());
+}
+
+static void handleClearSafeMode(AsyncWebSocketClient* client) {
+    bootManager.clearSafeMode();
+
+    JsonDocument doc;
+    doc["cmd"] = "clear_safe_mode_response";
+    JsonObject data = doc["data"].to<JsonObject>();
+    data["status"] = "ok";
+
+    String output;
+    serializeJson(doc, output);
+    client->text(output.c_str());
+
+    delay(300);
+    ESP.restart();
+}
+
 static void handleGetHeap(AsyncWebSocketClient* client) {
     JsonDocument doc;
     doc["cmd"] = "heap_response";
@@ -390,6 +449,21 @@ void RegisterProjectWsCommands(WsCommandServer& ws) {
     ws.on("restore_backup", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
         (void)doc;
         handleRestoreBackup(client, data);
+    });
+
+                ws.on("get_board_info", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        (void)data; (void)doc;
+        handleGetBoardInfo(client);
+    });
+
+    ws.on("get_system_logs", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        (void)data; (void)doc;
+        handleGetSystemLogs(client);
+    });
+
+    ws.on("clear_safe_mode", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {
+        (void)data; (void)doc;
+        handleClearSafeMode(client);
     });
 
     ws.on("get_heap", [](AsyncWebSocketClient* client, JsonVariantConst data, JsonDocument& doc) {

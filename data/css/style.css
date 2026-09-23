@@ -148,8 +148,8 @@ button:hover {
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
   margin-top: 14px;
 }
 
@@ -209,6 +209,16 @@ button:hover {
 }
 .error-box li {
   margin-bottom: 4px;
+}
+.details-box {
+    margin-top: 20px;
+    padding: 15px;
+    background: #141414;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+.details-box summary:hover {
+    opacity: 0.85;
 }
 .warning-box {
     margin-top: 20px;
@@ -284,14 +294,21 @@ button:hover {
 }
 .output-card .form-grid {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: min-content 1fr;
   gap: 10px;
   align-items: center;
 }
 .output-card .form-grid label {
   text-align: right;
-  font-size: 14px;
+  font-size: 13px;
+  white-space: nowrap;
   opacity: 0.9;
+}
+.output-card .form-grid select,
+.output-card .form-grid input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .output-card .range-inputs {
   display: flex;
@@ -299,7 +316,8 @@ button:hover {
   gap: 5px;
 }
 .output-card .range-inputs input {
-  width: 60px;
+  width: 100%;
+  min-width: 0;
 }
 
 .chanHeader {
@@ -368,6 +386,8 @@ select {
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 14px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* ------------------ Button Pills ------------------ */
