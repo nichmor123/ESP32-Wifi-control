@@ -24,49 +24,63 @@ Download the binary matching your microcontroller hardware:
 - **`firmware_esp32s3.bin`** – For **ESP32-S3** boards (e.g. ESP32-S3 DevKitC-1, N8/N16).
 - **`firmware_esp32wroom32.bin`** – For **ESP32 / WROOM-32 / ESP32-D0WD** standard boards.
 
-### 3. Flash to ESP32 via Browser Web Flasher
-You don't need PlatformIO or Arduino IDE! Flash directly from Google Chrome or Microsoft Edge:
-1. Open the online **[ESP Web Flasher (Espressif esptool-js)](https://espressif.github.io/esptool-js/)** or **[Adafruit WebSerial ESPTool](https://adafruit.github.io/Adafruit_WebSerial_ESPTool/)**.
-2. Connect your ESP32 to your computer using a USB data cable.
-3. Click **Connect**, select your ESP32's COM port, and set the baud rate to `921600`.
-4. Choose the downloaded binary file (`.bin`).
-5. Set Flash Offset to **`0x0000`** (or `0x10000` depending on the tool prompt) and click **Program / Flash**.
+### 3. Flash to ESP32 via Adafruit WebSerial ESPTool
+You don't need PlatformIO or Arduino IDE! Flash directly from Google Chrome or Microsoft Edge using the Adafruit WebSerial ESPTool:
+
+1. Open the **[Adafruit WebSerial ESPTool](https://adafruit.github.io/Adafruit_WebSerial_ESPTool/)** in Chrome or Edge.
+2. Connect your ESP32 board to your computer using a USB data cable.
+3. Click the **Connect** button in the top right corner.
+4. In the browser popup, select your ESP32's COM port (e.g., `CP210x`, `CH340`, or `USB JTAG/serial debug unit`) and click **Connect**.
+5. Set the Baud Rate dropdown to **`921600`** (or `115200` if using a long/unshielded cable).
+6. In the file upload section:
+   - Click **Choose File...** and select your downloaded firmware binary (`firmware_esp32s3.bin` or `firmware_esp32wroom32.bin`).
+   - Set the Offset address box to **`0x0000`**.
+7. Click **Program** (or **Erase & Program** if performing a fresh install).
+8. Wait for the progress bar to reach 100% and display "Done!".
+9. Press the physical **RESET** (RST / EN) button on your ESP32 board to restart into the new firmware.
 
 ---
 
-### 4. Observe LED Status Signal
-Once flashed, the onboard LED provides instant visual feedback:
-- **Auto-Numbering (First Boot):** Flashes N times (e.g., 1 flash -> pause -> repeat) indicating auto-assigned controller number `ESP32Controller-1`.
-- **AP Mode Active (Idle):** Long double-pulse rhythm.
-- **Client Connected:** Heartbeat pulse (500ms ON / 500ms OFF).
-- **Active Real-Time Control Stream:** Rapid double-strobe.
+### 4. Observe Onboard LED Status Signal
+Once flashed and booted, the onboard LED provides instant visual feedback:
+- **Auto-Numbering (First Boot / Fresh Board):** Flashes N times (e.g., 1 flash -> pause -> repeat for board `ESP32Controller-1`).
+- **AP Mode Active (Idle / No Client Connected):** Long double-pulse rhythm (1.2s ON, 0.3s OFF, 1.2s ON, 2.0s OFF).
+- **Client Connected (Web Interface Active):** Heartbeat pulse (0.5s ON, 0.5s OFF).
+- **Active Real-Time Control Stream:** Fast double-strobe (80ms ON, 80ms OFF, 80ms ON, 600ms OFF).
 
 ---
 
 ### 5. Connect to Controller Wi-Fi
-On your smartphone, laptop, or computer:
+On your smartphone, laptop, or tablet:
 1. Search for available Wi-Fi networks.
-2. Connect to **`ESP32Controller-1`** (or whichever number your onboard LED signaled).
+2. Connect to **`ESP32Controller-1`** (or whichever network number your onboard LED flashed).
 3. Enter default Wi-Fi password: **`12345678`**.
 
 ---
 
 ### 6. Open Web Interface
 Open **Google Chrome** or **Firefox** and navigate to:
-**`http://192.168.4.1`**
+**`http://192.168.4.1`** (or **`http://esp32controller.local`**)
 
 ---
 
-### 7. First-Time Setup Checklist (Web Control Pages)
-Once the web UI loads, configure your vehicle or robot in order:
+### 7. Overview of Setup & Control Pages
 
-| Web Page | What to Configure |
+Once connected to the web interface, configure and operate your vehicle using the navigation sidebar:
+
+| Web Page | Function & Description |
 |---|---|
-| **`Overview` (`/`)** | View real-time gamepad diagnostics, active WebSocket latency, and live battery telemetry. |
-| **`Input Mapping` (`/inputs`)** | Plug in a USB gamepad or enable mobile touch joysticks. Click "Start Reading" and assign physical sticks/buttons to Channels 1–20. Add deadband, expo, or axis inversion. |
-| **`Input Mixes` (`/mixes`)** | Set up differential drive / tank steering (combining Throttle + Steering into Left/Right motor channels). |
-| **`Output Mapping` (`/outputs`)** | Assign channels to physical ESP32 GPIO pins. Select driver mode: `ESC (Brushed/Brushless)`, `Servo`, or `H-Bridge Motor Driver (IN1/IN2)`. |
-| **`Battery` (`/battery`)** | Enable battery telemetry, select chemistry (LiPo / LiFePO4), cell count, resistor values, and ADC sense pin. |
+| **Overview (`/`)** | System architecture landing page displaying status LED guide, battery telemetry, and navigation links to all control/setup pages. |
+| **Computer Control (`/computer`)** | Desktop control interface for USB gamepads or keyboard shortcuts, streaming real-time 100 Hz binary control data via WebSocket. |
+| **Mobile Control (`/mobile`)** | Mobile control interface featuring virtual touch joysticks (`Nipple.js`) and customizable touch action buttons. |
+| **Input Mapping (`/inputs`)** | Map physical gamepad sticks/buttons or virtual touch controls directly to Channels 1–20. Configure deadband, exponential response curves, or axis inversion. |
+| **Input Mixes (`/mixes`)** | Create virtual channel mixes (e.g. Tank / Differential Drive steering) combining positive and negative inputs with custom deadband, expo, and invert settings. |
+| **Output Mapping (`/outputs`)** | Map channels to physical ESP32 GPIO pins. Select driver mode (`Servo`, `ESC`, or `H-Bridge Motor Driver`). Built-in hardware timer checks prevent channel frequency conflicts. |
+| **Battery Monitor (`/battery`)** | Enable voltage telemetry, select chemistry (LiPo, LiFePO4, Li-ion), cell count, sense pin, and auto-calculate recommended voltage divider resistors (R1 / R2). |
+| **Backup & Restore (`/backup`)** | Save, load, and switch between multi-profile configurations, or export/import full system backup JSON files. |
+| **Troubleshooting (`/troubleshooting`)** | View live boot logs (`/logs/current.log` and `/logs/last_boot.log`), last reset reason, crash counter status, clear Safe Mode, test ping, check free heap, or reboot device. |
+| **Settings (`/settings`)** | Configure Wi-Fi credentials (AP or Client STA mode), SSID, Password, Hostname (for `.local` mDNS access), and Static IP Address (AP mode). |
+| **Theme (`/theme`)** | Customize web UI accent colors and themes with instant live preview. |
 
 ---
 
