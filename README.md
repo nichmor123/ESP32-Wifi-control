@@ -8,7 +8,7 @@ Designed for robotics, RC vehicles, rovers, differential drive tanks, and custom
 
 ## Quick Setup Guide (No C++ Compiler Required!)
 
-Follow these 7 quick steps to get up and running in minutes using pre-compiled binaries and an online web flasher:
+Follow these 8 quick steps to get up and running in minutes using pre-compiled binaries and an online web flasher:
 
 ### 1. Install USB Drivers
 Ensure your computer can communicate with your ESP32 board over USB:
@@ -44,10 +44,6 @@ You don't need PlatformIO or Arduino IDE! Flash directly from Google Chrome or M
 ### 4. Observe Onboard LED Status Signal
 Once flashed and booted, the onboard LED provides instant visual feedback:
 - **Auto-Numbering (First Boot / Fresh Board):** Flashes N times (e.g., 1 flash -> pause -> repeat for board `ESP32Controller-1`).
-- **AP Mode Active (Idle / No Client Connected):** Long double-pulse rhythm (1.2s ON, 0.3s OFF, 1.2s ON, 2.0s OFF).
-- **Client Connected (Web Interface Active):** Heartbeat pulse (0.5s ON, 0.5s OFF).
-- **Active Real-Time Control Stream:** Fast double-strobe (80ms ON, 80ms OFF, 80ms ON, 600ms OFF).
-
 ---
 
 ### 5. Connect to Controller Wi-Fi
@@ -64,7 +60,17 @@ Open **Google Chrome** or **Firefox** and navigate to:
 
 ---
 
-### 7. Overview of Setup & Control Pages
+### 7. Name Your Robot & Custom Wi-Fi Credentials (`/settings`)
+Navigate to **Settings** (`/settings`) in the web interface to give your vehicle a custom name:
+1. **Hostname:** Set a custom hostname for easy web browser access (e.g. setting `myrover` lets you access the controller at `http://myrover.local`).
+2. **SSID (Network Name):** Change the Wi-Fi network name from `ESP32Controller-1` to your robot's name (e.g., `CombatBot-1`, `BattleTank`, `MarsRover`).
+3. **Password:** Set a custom Wi-Fi password (at least 8 characters) to secure your controller.
+4. **Static IP (AP Mode):** Optionally customize the Access Point IP address (default is `192.168.4.1`).
+5. Click **Save & Restart**. The ESP32 will reboot instantly into your new Wi-Fi network name.
+
+---
+
+### 8. Overview of Setup & Control Pages
 
 Once connected to the web interface, configure and operate your vehicle using the navigation sidebar:
 
