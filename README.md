@@ -21,7 +21,7 @@ Go to the official GitHub Releases page:
 **[Download Latest Firmware Binaries (GitHub Releases)](https://github.com/nichmor123/ESP32-Wifi-control/releases)**
 
 Download the binary matching your microcontroller hardware:
-- **`esp32s3.bin`** – For **ESP32-S3** boards (e.g. ESP32-S3 DevKitC-1, N8/N16).
+- **`esp32-s3.bin`** – For **ESP32-S3** boards (e.g. ESP32-S3 DevKitC-1, N8/N16).
 - **`esp32wroom32.bin`** – For **ESP32 / WROOM-32 / ESP32-D0WD** standard boards.
 
 ### 3. Flash to ESP32 via Adafruit WebSerial ESPTool
@@ -33,7 +33,7 @@ You don't need PlatformIO or Arduino IDE! Flash directly from Google Chrome or M
 4. In the browser popup, select your ESP32's COM port (e.g., `CP210x`, `CH340`, or `USB JTAG/serial debug unit`) and click **Connect**.
 5. Set the Baud Rate dropdown to **`921600`** (or `115200` if using a long/unshielded cable).
 6. In the file upload section:
-   - Click **Choose File...** in the first box and select your downloaded firmware binary (`esp32s3.bin` or `esp32wroom32.bin`).
+   - Click **Choose File...** in the first box and select your downloaded firmware binary (`esp32-s3.bin` or `esp32wroom32.bin`).
    - Ensure the first box Offset address box to **`0x0000`**.
 7. Click **Program** (or **Erase & Program** if performing a fresh install).
 8. Wait for the progress bar to reach 100% and display "Done!".
