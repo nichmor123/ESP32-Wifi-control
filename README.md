@@ -21,8 +21,8 @@ Go to the official GitHub Releases page:
 **[Download Latest Firmware Binaries (GitHub Releases)](https://github.com/nichmor123/ESP32-Wifi-control/releases)**
 
 Download the binary matching your microcontroller hardware:
-- **`firmware_esp32s3.bin`** – For **ESP32-S3** boards (e.g. ESP32-S3 DevKitC-1, N8/N16).
-- **`firmware_esp32wroom32.bin`** – For **ESP32 / WROOM-32 / ESP32-D0WD** standard boards.
+- **`esp32s3.bin`** – For **ESP32-S3** boards (e.g. ESP32-S3 DevKitC-1, N8/N16).
+- **`esp32wroom32.bin`** – For **ESP32 / WROOM-32 / ESP32-D0WD** standard boards.
 
 ### 3. Flash to ESP32 via Adafruit WebSerial ESPTool
 You don't need PlatformIO or Arduino IDE! Flash directly from Google Chrome or Microsoft Edge using the Adafruit WebSerial ESPTool:
