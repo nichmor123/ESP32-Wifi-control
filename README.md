@@ -300,7 +300,7 @@ To compile and modify the source code:
 
 1. **Clone Repository:**
    ```bash
-   git clone https://github.com/NickA-0/Wifi_Control.git
+   git clone https://github.com/nichmor123/ESP32-Wifi-control.git
    cd Wifi_Control
    ```
 2. Open the directory in **VS Code** with **PlatformIO** extension installed.
