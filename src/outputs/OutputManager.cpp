@@ -4,13 +4,13 @@
 
 // Servo constants
 static constexpr uint32_t SERVO_FREQ = 50; // 50 Hz
-static constexpr uint8_t SERVO_RESOLUTION_BITS = 16;
+static constexpr uint8_t SERVO_RESOLUTION_BITS = 14; // 14-bit (max bit width for ESP32 LEDC at 50Hz)
 static constexpr uint32_t SERVO_MIN_PULSE_US = 500;
 static constexpr uint32_t SERVO_MAX_PULSE_US = 2500;
 
 // ESC constants (assuming standard 1000-2000us range)
 static constexpr uint32_t ESC_FREQ = 50;
-static constexpr uint8_t ESC_RESOLUTION_BITS = 16;
+static constexpr uint8_t ESC_RESOLUTION_BITS = 14; // 14-bit
 static constexpr uint32_t ESC_MIN_PULSE_US = 1000;
 static constexpr uint32_t ESC_NEUTRAL_PULSE_US = 1500;
 static constexpr uint32_t ESC_MAX_PULSE_US = 2000;
@@ -19,14 +19,34 @@ static constexpr uint32_t ESC_MAX_PULSE_US = 2000;
 static constexpr uint32_t HBRIDGE_FREQ = 20000; // 20 kHz for silent & smooth DC motor control
 static constexpr uint8_t HBRIDGE_RESOLUTION_BITS = 10; // 10-bit resolution (0..1023)
 
+static inline void driverLedcSetup(uint8_t pin, uint8_t channel, uint32_t freq, uint8_t resolution) {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    ledcAttach(pin, freq, resolution);
+#else
+    ledcSetup(channel, freq, resolution);
+    ledcAttachPin(pin, channel);
+#endif
+}
+
+static inline void driverLedcWrite(uint8_t pin, uint8_t channel, uint32_t duty) {
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    ledcWrite(pin, duty);
+#else
+    ledcWrite(channel, duty);
+#endif
+}
+
 OutputManager::OutputManager() {}
 
 void OutputManager::begin() {
     Serial.println("Initializing OutputManager...");
+    _initialized = true;
     parseConfig();
 }
 
 void OutputManager::update(const ChannelBus& bus) {
+    if (!_initialized || _outputCount == 0) return;
+
     for (uint8_t i = 0; i < _outputCount; ++i) {
         OutputConfig& out = _outputs[i];
         if (out.sourceChannel == 0 || out.sourceChannel > ChannelBus::N) continue;
@@ -34,16 +54,16 @@ void OutputManager::update(const ChannelBus& bus) {
         float inputValue = bus.ch[out.sourceChannel - 1];
         float mappedValue = mapfloat(inputValue, out.inputRange[0], out.inputRange[1], out.outputRange[0], out.outputRange[1]);
 
-        if (out.type == OutputConfig::SERVO) {
+                if (out.type == OutputConfig::SERVO) {
             uint32_t pulse_us = mapfloat(mappedValue, out.outputRange[0], out.outputRange[1], SERVO_MIN_PULSE_US, SERVO_MAX_PULSE_US);
             uint32_t period_us = 1000000 / SERVO_FREQ;
             uint32_t duty = (pulse_us * ((1 << SERVO_RESOLUTION_BITS) - 1)) / period_us;
-            ledcWrite(out.pwmChannel, duty);
+            driverLedcWrite(out.pin, out.pwmChannel, duty);
         } else if (out.type == OutputConfig::ESC) {
             uint32_t pulse_us = mapfloat(mappedValue, out.outputRange[0], out.outputRange[1], ESC_MIN_PULSE_US, ESC_MAX_PULSE_US);
             uint32_t period_us = 1000000 / ESC_FREQ;
             uint32_t duty = (pulse_us * ((1 << ESC_RESOLUTION_BITS) - 1)) / period_us;
-            ledcWrite(out.pwmChannel, duty);
+            driverLedcWrite(out.pin, out.pwmChannel, duty);
         } else if (out.type == OutputConfig::HBRIDGE) {
             float speedPct = mapfloat(mappedValue, out.outputRange[0], out.outputRange[1], -100.0f, 100.0f);
             speedPct = constrain(speedPct, -100.0f, 100.0f);
@@ -63,28 +83,30 @@ void OutputManager::update(const ChannelBus& bus) {
                 duty2 = 0;
             }
 
-            ledcWrite(out.pwmChannel, duty1);
-            ledcWrite(out.pwmChannel2, duty2);
+            driverLedcWrite(out.pin, out.pwmChannel, duty1);
+            driverLedcWrite(out.pin2, out.pwmChannel2, duty2);
         }
     }
 }
 
 void OutputManager::halt() {
+    if (!_initialized || _outputCount == 0) return;
+
     for (uint8_t i = 0; i < _outputCount; ++i) {
         OutputConfig& out = _outputs[i];
         if (out.type == OutputConfig::SERVO) {
             uint32_t pulse_us = mapfloat(90, 0, 180, SERVO_MIN_PULSE_US, SERVO_MAX_PULSE_US);
             uint32_t period_us = 1000000 / SERVO_FREQ;
             uint32_t duty = (pulse_us * ((1 << SERVO_RESOLUTION_BITS) - 1)) / period_us;
-            ledcWrite(out.pwmChannel, duty);
+            driverLedcWrite(out.pin, out.pwmChannel, duty);
         } else if (out.type == OutputConfig::ESC) {
             uint32_t pulse_us = ESC_NEUTRAL_PULSE_US;
             uint32_t period_us = 1000000 / ESC_FREQ;
             uint32_t duty = (pulse_us * ((1 << ESC_RESOLUTION_BITS) - 1)) / period_us;
-            ledcWrite(out.pwmChannel, duty);
+            driverLedcWrite(out.pin, out.pwmChannel, duty);
         } else if (out.type == OutputConfig::HBRIDGE) {
-            ledcWrite(out.pwmChannel, 0);
-            ledcWrite(out.pwmChannel2, 0);
+            driverLedcWrite(out.pin, out.pwmChannel, 0);
+            driverLedcWrite(out.pin2, out.pwmChannel2, 0);
         }
     }
 }
@@ -136,15 +158,12 @@ void OutputManager::parseConfig() {
                         continue;
                     }
 
-                    if (_nextPwmChannel + 1 < MAX_PWM_CHANNELS) {
+                                        if (_nextPwmChannel + 1 < MAX_PWM_CHANNELS) {
                         cfg.pwmChannel = _nextPwmChannel++;
                         cfg.pwmChannel2 = _nextPwmChannel++;
 
-                        ledcSetup(cfg.pwmChannel, HBRIDGE_FREQ, HBRIDGE_RESOLUTION_BITS);
-                        ledcAttachPin(cfg.pin, cfg.pwmChannel);
-
-                        ledcSetup(cfg.pwmChannel2, HBRIDGE_FREQ, HBRIDGE_RESOLUTION_BITS);
-                        ledcAttachPin(cfg.pin2, cfg.pwmChannel2);
+                        driverLedcSetup(cfg.pin, cfg.pwmChannel, HBRIDGE_FREQ, HBRIDGE_RESOLUTION_BITS);
+                        driverLedcSetup(cfg.pin2, cfg.pwmChannel2, HBRIDGE_FREQ, HBRIDGE_RESOLUTION_BITS);
 
                         _outputCount++;
                     } else {
@@ -161,8 +180,7 @@ void OutputManager::parseConfig() {
                         cfg.pwmChannel = _nextPwmChannel++;
                         uint32_t freq = (cfg.type == OutputConfig::SERVO) ? SERVO_FREQ : ESC_FREQ;
                         uint8_t resolution = (cfg.type == OutputConfig::SERVO) ? SERVO_RESOLUTION_BITS : ESC_RESOLUTION_BITS;
-                        ledcSetup(cfg.pwmChannel, freq, resolution);
-                        ledcAttachPin(cfg.pin, cfg.pwmChannel);
+                        driverLedcSetup(cfg.pin, cfg.pwmChannel, freq, resolution);
                         _outputCount++;
                     } else {
                         Serial.printf("Warning: Exceeded maximum %u PWM channels for this target. Output %d ignored.\n", MAX_PWM_CHANNELS, _outputCount);

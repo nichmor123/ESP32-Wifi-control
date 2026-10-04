@@ -19,6 +19,7 @@ public:
 
     bool isSafeMode() const { return _isSafeMode; }
     uint8_t getBootCount() const { return _bootCount; }
+    const char* getResetReasonString() const;
 
     void clearSafeMode();
 

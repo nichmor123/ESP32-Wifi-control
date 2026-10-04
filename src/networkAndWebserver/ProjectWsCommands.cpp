@@ -354,6 +354,7 @@ static void handleGetSystemLogs(AsyncWebSocketClient* client) {
 
     data["isSafeMode"] = bootManager.isSafeMode();
     data["bootCount"] = bootManager.getBootCount();
+    data["resetReason"] = bootManager.getResetReasonString();
     data["uptimeMs"] = millis();
     data["currentLog"] = bootManager.getCurrentLog();
     data["lastBootLog"] = bootManager.getLastBootLog();

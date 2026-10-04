@@ -3,6 +3,22 @@
 
 BootManager::BootManager() {}
 
+const char* BootManager::getResetReasonString() const {
+    switch (esp_reset_reason()) {
+        case ESP_RST_POWERON:   return "Power-On Reset (Cold Boot)";
+        case ESP_RST_EXT:       return "External Pin Reset (Reset Button)";
+        case ESP_RST_SW:        return "Software Restart (ESP.restart)";
+        case ESP_RST_PANIC:     return "Software Crash / Exception Panic";
+        case ESP_RST_INT_WDT:   return "Interrupt Watchdog Reset (Freeze)";
+        case ESP_RST_TASK_WDT:  return "Task Watchdog Reset (Hung Task)";
+        case ESP_RST_WDT:       return "Watchdog Reset";
+        case ESP_RST_DEEPSLEEP: return "Deep Sleep Reset";
+        case ESP_RST_BROWNOUT:  return "Brownout Reset (Low Supply Voltage)";
+        case ESP_RST_SDIO:      return "SDIO Reset";
+        default:                return "Unknown Reset Reason";
+    }
+}
+
 void BootManager::begin() {
     _bootTimeMs = millis();
 
@@ -26,7 +42,7 @@ void BootManager::begin() {
     log("========================================");
     log("ESP32 System Startup");
     log("Boot Count: %u (Max before safe mode: %u)", _bootCount, MAX_CRASH_COUNT);
-    log("Reset Reason: %s", esp_err_to_name(esp_reset_reason()));
+    log("Reset Reason: %s", getResetReasonString());
 
     if (_isSafeMode) {
         log("[SAFE MODE ACTIVE] Consecutively restarted %u times without reaching 15s uptime.", _bootCount);

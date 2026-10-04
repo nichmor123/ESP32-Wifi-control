@@ -33,8 +33,9 @@ private:
 
     static constexpr int MAX_OUTPUTS = 16;
     OutputConfig _outputs[MAX_OUTPUTS];
-    uint8_t _outputCount = 0;
+        uint8_t _outputCount = 0;
     uint8_t _nextPwmChannel = 0;
+    bool _initialized = false;
 
     void parseConfig();
     void setupPwm(OutputConfig& output);

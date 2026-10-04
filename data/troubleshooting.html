@@ -41,10 +41,11 @@
       <!-- Safe Mode & Boot Monitor Status -->
       <div id="safeModeCard" style="margin-top: 16px; padding: 16px; border-radius: 8px; background: #141414; border: 1px solid var(--border-color); text-align: left;">
         <h3 style="margin-top: 0; color: var(--accent-color); font-size: 16px;">Boot & Crash Monitor Status</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 10px;">
           <div><strong>System Mode:</strong> <span id="systemModeBadge" style="font-weight: bold; color: #2ecc71;">NORMAL MODE</span></div>
           <div><strong>Boot Crash Counter:</strong> <span id="bootCountVal">0</span> / 3</div>
           <div><strong>System Uptime:</strong> <span id="uptimeVal">0s</span></div>
+          <div><strong>Last Reset Reason:</strong> <span id="resetReasonVal" style="color: var(--accent-color); font-weight: bold;">Detecting...</span></div>
         </div>
         <div id="safeModeDesc" style="margin-top: 10px; font-size: 13px; opacity: 0.8;">
           If the controller restarts 3 times consecutively within 15 seconds of boot, it enters Safe Mode and suspends motor outputs to prevent crash loops.

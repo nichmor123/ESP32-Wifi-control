@@ -18,8 +18,10 @@ function updateSystemLogsUI(data) {
         }
     }
 
-    if (bootCountVal) bootCountVal.textContent = data.bootCount;
+        if (bootCountVal) bootCountVal.textContent = data.bootCount;
     if (uptimeVal) uptimeVal.textContent = (data.uptimeMs / 1000).toFixed(1) + "s";
+    const resetReasonVal = document.getElementById("resetReasonVal");
+    if (resetReasonVal && data.resetReason) resetReasonVal.textContent = data.resetReason;
 
     if (bootLogViewer) {
         if (selectedLogTab === 'current') {

@@ -43,9 +43,10 @@ void BatteryMonitor::begin() {
         _config.vMin = cells * 2.5f;
     }
 
-    pinMode(_config.pin, INPUT);
+        pinMode(_config.pin, INPUT);
+    analogSetPinAttenuation(_config.pin, ADC_11db);
 
-        // Prime the moving average filter with initial readings
+    // Prime the moving average filter with initial readings
     for (int i = 0; i < NUM_READINGS; ++i) {
         _readings[i] = analogReadMilliVolts(_config.pin) / 1000.0f; // Use calibrated millivolts
         delay(2); // Small delay between readings
@@ -54,12 +55,19 @@ void BatteryMonitor::begin() {
     Serial.printf("Battery monitor enabled on pin %d\n", _config.pin);
 }
 
+static portMUX_TYPE g_adcMux = portMUX_INITIALIZER_UNLOCKED;
+
 void BatteryMonitor::update() {
     if (!_config.enabled) return;
 
+    // Read from the sensor in calibrated Volts inside a critical section to prevent WiFi TSENS collision
+    uint32_t mv = 0;
+    portENTER_CRITICAL(&g_adcMux);
+    mv = analogReadMilliVolts(_config.pin);
+    portEXIT_CRITICAL(&g_adcMux);
+
     // --- Moving Average Filter ---
-    // Read from the sensor in calibrated Volts and update the readings array
-    _readings[_readingIndex] = analogReadMilliVolts(_config.pin) / 1000.0f;
+    _readings[_readingIndex] = mv / 1000.0f;
     _readingIndex = (_readingIndex + 1) % NUM_READINGS;
 
     // Calculate the average
