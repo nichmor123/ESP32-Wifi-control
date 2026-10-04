@@ -12,13 +12,13 @@ Follow these 7 quick steps to get up and running in minutes using pre-compiled b
 
 ### 1. Install USB Drivers
 Ensure your computer can communicate with your ESP32 board over USB:
-- **CP210x Drivers:** [Silicon Labs CP210x VCP Drivers](https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers)
+- **CP210x Drivers:** [Silicon Labs CP210x VCP Drivers](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads)
 - **CH340 / CH341 Drivers:** [WCH CH340 USB Drivers](http://www.wch-ic.com/downloads/CH341SER_ZIP.html)
 - **ESP32-S3 Native USB-CDC:** No additional driver required on Windows 10/11 or macOS.
 
 ### 2. Download the Firmware Binary
 Go to the official GitHub Releases page:
-**[Download Latest Firmware Binaries (GitHub Releases)](https://github.com/NickA-0/Wifi_Control/releases)**
+**[Download Latest Firmware Binaries (GitHub Releases)](https://github.com/nichmor123/ESP32-Wifi-control/releases)**
 
 Download the binary matching your microcontroller hardware:
 - **`firmware_esp32s3.bin`** – For **ESP32-S3** boards (e.g. ESP32-S3 DevKitC-1, N8/N16).
@@ -33,11 +33,11 @@ You don't need PlatformIO or Arduino IDE! Flash directly from Google Chrome or M
 4. In the browser popup, select your ESP32's COM port (e.g., `CP210x`, `CH340`, or `USB JTAG/serial debug unit`) and click **Connect**.
 5. Set the Baud Rate dropdown to **`921600`** (or `115200` if using a long/unshielded cable).
 6. In the file upload section:
-   - Click **Choose File...** and select your downloaded firmware binary (`firmware_esp32s3.bin` or `firmware_esp32wroom32.bin`).
-   - Set the Offset address box to **`0x0000`**.
+   - Click **Choose File...** in the first box and select your downloaded firmware binary (`esp32s3.bin` or `esp32wroom32.bin`).
+   - Ensure the first box Offset address box to **`0x0000`**.
 7. Click **Program** (or **Erase & Program** if performing a fresh install).
 8. Wait for the progress bar to reach 100% and display "Done!".
-9. Press the physical **RESET** (RST / EN) button on your ESP32 board to restart into the new firmware.
+9. Press the physical **RESET** (RST / EN) button on your ESP32 board or perform a power cycle to restart into the new firmware.
 
 ---
 
@@ -81,6 +81,37 @@ Once connected to the web interface, configure and operate your vehicle using th
 | **Troubleshooting (`/troubleshooting`)** | View live boot logs (`/logs/current.log` and `/logs/last_boot.log`), last reset reason, crash counter status, clear Safe Mode, test ping, check free heap, or reboot device. |
 | **Settings (`/settings`)** | Configure Wi-Fi credentials (AP or Client STA mode), SSID, Password, Hostname (for `.local` mDNS access), and Static IP Address (AP mode). |
 | **Theme (`/theme`)** | Customize web UI accent colors and themes with instant live preview. |
+
+---
+
+### How Channels, Input Mappings, and Output Mappings Work
+
+If you've ever used a traditional RC transmitter and receiver system (like Futaba, Spektrum, or FlySky), this system works on the exact same channel-bus architecture, but modernized and made fully software-configurable over Wi-Fi.
+
+#### The Channel Bus Concept
+In traditional RC hardware, physical controls on your transmitter (joysticks, switches, dials) transmit numerical values over the air on numbered channels (Channel 1, Channel 2, Channel 3, etc.). On your vehicle, the receiver reads these channel numbers and sends PWM signals out of corresponding physical servo ports.
+
+In this system, a **20-Channel Bus** runs continuously inside the ESP32 firmware. Think of the 20 channels as 20 virtual data pipelines connecting your web browser controls to the physical ESP32 GPIO pins:
+
+`[Physical Input (Gamepad / Touch)] ---> [Input Mapping & Mixes] ---> [20-Channel Bus] ---> [Output Mapping] ---> [ESP32 Hardware Pin (Servo/ESC/Motor)]`
+
+#### 1. Input Mapping (`/inputs`)
+- **What it does:** Connects your physical controller controls (such as Gamepad Left Stick Y, Right Stick X, or A Button) or mobile touch joysticks to any of the 20 virtual channels.
+- **Transformations:** Before passing data into a channel, you can adjust its response:
+  - **Deadband:** Ignores slight stick drift around the neutral center position.
+  - **Expo (Exponential Curve):** Softens sensitivity near stick center for smooth steering while maintaining 100% full speed at maximum deflection.
+  - **Invert:** Reverses control direction (e.g., swapping forward and backward).
+
+#### 2. Input Mixes (`/mixes`)
+- **What it does:** Blends multiple channels together to create complex vehicle movements, such as Tank Steering (Differential Drive).
+- **Example:** On a two-wheeled rover, moving Stick Y provides Forward/Backward Throttle (Channel 1) and Stick X provides Left/Right Steering (Channel 2). A Mix combines `Channel 1 + Channel 2` into Left Motor (Channel 3), and `Channel 1 - Channel 2` into Right Motor (Channel 4).
+
+#### 3. Output Mapping (`/outputs`)
+- **What it does:** Listens to a channel on the 20-Channel Bus and maps its real-time value to a physical GPIO pin on your ESP32.
+- **Hardware Driver Modes:**
+  - **Servo Mode:** Generates 50 Hz PWM position signals (500 µs to 2500 µs pulse width).
+  - **ESC Mode:** Generates 50 Hz PWM speed control signals (1000 µs to 2000 µs pulse width).
+  - **H-Bridge Motor Driver Mode:** Generates 20 kHz dual-pin PWM signals (IN1 / IN2) to drive motor driver chips (DRV8871, L298N, L9110S) directly without needing external ESCs.
 
 ---
 
