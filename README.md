@@ -35,7 +35,7 @@ You don't need PlatformIO or Arduino IDE! Flash directly from Google Chrome or M
 6. In the file upload section:
    - Click **Choose File...** in the first box and select your downloaded firmware binary (`esp32-s3.bin` or `esp32wroom32.bin`).
    - Ensure the first box Offset address box to **`0x0000`**.
-7. Click **Program** (or **Erase & Program** if performing a fresh install).
+7. Click **Program**.
 8. Wait for the progress bar to reach 100% and display "Done!".
 9. Press the physical **RESET** (RST / EN) button on your ESP32 board or perform a power cycle to restart into the new firmware.
 
